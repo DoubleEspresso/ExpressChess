@@ -1,3 +1,4 @@
+import java.awt.Color;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -236,6 +237,7 @@ public class Position
     
     public int pieceColorAt(int s)
     {
+    	if (!onBoard(s)) return Piece.PIECE_NONE.P();
     	return colorOn[s];
     }
     
@@ -278,5 +280,193 @@ public class Position
     			
     		}
     	}
+    }
+
+    public Boolean isLegal(int from, int to, int piece, int color)
+    {
+    	if (!isPseudoLegal(from, to, piece, color)) return false;
+    	
+    	// check pins/checks etc.
+    	return true;
+    }
+    
+    public Boolean isPseudoLegal(int from, int to, int piece, int color)
+    {
+    	if (pieceColorAt(to) == color) return false;
+    	switch (piece)
+    	{
+    		case 0: // pawn
+    			return pseudoLegalPawnMove(from, to, color);
+    		case 1: // knight
+    			return pseudoLegalKnightMove(from, to, color);  
+    		case 2: // bishop
+    			return pseudoLegalBishopMove(from, to, color);
+    	}
+    	return false;
+    }
+
+    int rowOf(int from)
+    {
+    	return (from >> 3);
+    }
+    
+    int colOf(int from)
+    {	
+    	return (from & 7);
+    }
+    
+    Boolean onBoard(int to)
+    {
+    	return (to >= 0 && to <= 63);
+    }
+    
+    Boolean isEmpty(int s)
+    {
+    	return pieceOn[s] == Piece.PIECE_NONE.P();
+    }
+    
+    Boolean enemyOn(int s, int color)
+    {
+    	return (colorOn[s] == color && pieceOn[s] != Piece.PIECE_NONE.P());
+    }
+    
+    int colDiff(int s1, int s2)
+    {
+    	return Math.abs(colOf(s1)-colOf(s2));
+    }
+    
+    int rowDiff(int s1, int s2)
+    {
+    	return Math.abs(rowOf(s1) - rowOf(s2));
+    }
+    
+    Boolean onCol(int s1, int s2)
+    {
+    	return colDiff(s1, s2) == 0;
+    }
+    
+    Boolean onRow(int s1, int s2)
+    {
+    	return rowDiff(s1, s2) == 0;
+    }
+    
+    Boolean onDiag(int s1, int s2)
+    {
+    	return colDiff(s1, s2) == rowDiff(s1, s2);
+    }
+    
+    private Boolean pseudoLegalPawnMove(int from, int to, int color)
+    {
+    	int enemy = (color == WHITE ? BLACK : WHITE);
+    	int forward1 = (color == WHITE ? 8 : -8);
+    	int forward2 = (color == WHITE ? 16 : -16);
+    	int capRight = (color == WHITE ? 7 : -7);
+    	int capLeft = (color == WHITE ? 9 : -9);
+    	
+    	Boolean on7 = (color == WHITE ? (rowOf(from) == 7) : (rowOf(from) == 1));
+    	Boolean on2 = (color == WHITE ? (rowOf(from) == 1) : (rowOf(from) == 7));
+    	if (on2)
+    	{
+    		if ( (from + forward1) == to && isEmpty(to)) return true; 
+    		else if ( (from + forward2) == to && isEmpty(to)) return true;
+    		else if ( (from + capRight) == to && enemyOn(to, enemy) && colDiff(from,to)==1 && onBoard(to)) return true;
+    		else if ( (from + capLeft) == to && enemyOn(to, enemy) && colDiff(from,to)==1 && onBoard(to)) return true;
+    	}
+    	else 
+    	{
+    		if ( (from + forward1) == to && isEmpty(to)) return true;
+    		else if ( (from + capRight) == to && enemyOn(to, enemy) && colDiff(from,to)==1 && onBoard(to)) return true;
+    		else if ( (from + capLeft) == to && enemyOn(to, enemy) && colDiff(from,to)==1 && onBoard(to)) return true;
+    	}
+
+    	// TODO: handle ep and promotions
+    	return false;
+    }
+
+    private Boolean pseudoLegalKnightMove(int from, int to, int color)
+    {
+    	int[] deltas = { 16-1, 16+1, 2+8, 2-8, -16+1, -16-1, -2-8, -2+8 };
+    	int enemy = (color == WHITE ? BLACK : WHITE);
+    	
+    	for (int j=0; j<deltas.length; ++j)
+    	{
+    		int t = deltas[j] + from;
+    		if (t != to) continue;
+    		else if ( !onBoard(t) || (!isEmpty(to) && !enemyOn(to, enemy)) ) return false;
+    		else if (onBoard(t) && isEmpty(to) && !enemyOn(to, enemy)) return true;
+    		else if (onBoard(t) && !isEmpty(to) && enemyOn(to, enemy)) return true;
+    	}
+    	return false;
+    }
+
+    private Boolean pseudoLegalBishopMove(int from, int to, int color)
+    {
+    	
+    	int[] deltas = {7, 9, -7, -9};
+    	int enemy = (color == WHITE ? BLACK : WHITE);
+    	for(int j=0; j<deltas.length; ++j)
+    	{
+    		int d = deltas[j];
+    		int c = 1;
+    		int t = from + d * c;
+    		while (onBoard(t) && onDiag(from, t) && (isEmpty(t) || enemyOn(t, enemy)))
+    		{
+    			if (!isEmpty(t) && t != to) break;
+    			else if ((isEmpty(t) || !isEmpty(to)) && t == to) return true;
+    			//else if (!isEmpty(t) && t == to) return true;    			
+    			t = from + d * (++c);
+    		}
+    	}
+    	
+    	return false;
+    }
+
+    private Boolean pseudoLegalRookMove(int from, int to, int color)
+    {
+    	return false;
+    }
+ 
+    private Boolean pseudoLegalQueenMove(int from, int to, int color)
+    {
+    	return false;
+    }
+    
+    private Boolean pseudoLegalKingMove(int from, int to, int color)
+    {
+    	return false;
+    }
+    
+    public Boolean doMove(int from, int to, int piece, int color)
+    {   	
+		if (color == WHITE)
+		{
+			List<Integer> wsquares = getPieceSquares(WHITE, getPiece(from));
+			for (int j=0; j<wsquares.size(); ++j) 
+				if( from == wsquares.get(j)) 
+				{ 
+					wPieceSquares.get(piece).remove(j);
+					wPieceSquares.get(piece).add(to);
+
+				}			
+		}
+		else
+		{
+			List<Integer> bsquares = getPieceSquares(BLACK, getPiece(from));
+			for (int j=0; j<bsquares.size(); ++j) 
+				if( from == bsquares.get(j)) 
+				{ 
+					bPieceSquares.get(piece).remove(j);
+					bPieceSquares.get(piece).add(to);
+				}
+		}
+		
+    	pieceOn[from] = Piece.PIECE_NONE.P();
+    	pieceOn[to] = piece;
+    	
+    	colorOn[from] = COLOR_NONE;
+    	colorOn[to] = color;
+    	
+    	// handle captures /etc.
+    	return true;
     }
 }

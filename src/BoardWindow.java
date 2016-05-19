@@ -23,6 +23,10 @@ public class BoardWindow extends TestWindow
 	private Texture ActivePiece;
 	private Vec2 MousePos = new Vec2(0,0);
 	private Vec2 BoardDims = new Vec2(0,0);
+	private int fromSq = -1;
+	private int toSq = -1;
+	private int movingPiece = -1;
+	private int movingColor = -1;
 	
 	public BoardWindow(Composite parent) 
 	{
@@ -105,6 +109,7 @@ public class BoardWindow extends TestWindow
 		
 		return true;
 	}
+	
 	
 	public void renderSquares(GL gl, int w, int h)
 	{
@@ -300,18 +305,21 @@ public class BoardWindow extends TestWindow
 		int s = 8*r + c;
 		if (position.hasPiece(s))
 		{
+			fromSq = s;
 			if (position.pieceColorAt(s) == position.WHITE )
 			{
+				movingColor = position.WHITE;
 				draggingPiece = true;
 				List<Integer> wsquares = position.getPieceSquares(position.WHITE, position.getPiece(s));
-				for (int j=0; j<wsquares.size(); ++j) if( s == wsquares.get(j)) ActivePiece = wPieceTextures.get(position.getPiece(s)).get(j);
-				//ActivePiece = whitePieces.get(position.getPiece(s));
+				for (int j=0; j<wsquares.size(); ++j) if( s == wsquares.get(j)) { ActivePiece = wPieceTextures.get(position.getPiece(s)).get(j); movingPiece = position.getPiece(s); }
+				
 			}
 			else if (position.pieceColorAt(s) == position.BLACK )
 			{
+				movingColor = position.BLACK;
 				draggingPiece = true;
 				List<Integer> wbsquares = position.getPieceSquares(position.BLACK, position.getPiece(s));
-				for (int j=0; j<wbsquares.size(); ++j) if( s == wbsquares.get(j)) ActivePiece = bPieceTextures.get(position.getPiece(s)).get(j);
+				for (int j=0; j<wbsquares.size(); ++j) if( s == wbsquares.get(j)) { ActivePiece = bPieceTextures.get(position.getPiece(s)).get(j); movingPiece = position.getPiece(s); }
 				//ActivePiece = whitePieces.get(position.getPiece(s));
 			}
 				
@@ -326,12 +334,30 @@ public class BoardWindow extends TestWindow
 		// need to set from/to, drag piece color, and drag piece typ
 		if (draggingPiece)
 		{
-
+			Vec2 v = new Vec2(e.x, e.y);
+			Vec2 p = squareFromMouse(v);
+			int r = (int) p.x; int c = (int) p.y;
+			toSq = 8*r + c;
 			
+			if (position.isLegal(fromSq, toSq, movingPiece, movingColor))
+			{
+				// drop piece..handle all special move types
+				position.doMove(fromSq, toSq, movingPiece, movingColor);
+				
+			}
+			else
+			{
+				//System.out.println("...illegal");
+			}
+			
+			fromSq = -1;
+			toSq = -1;	
+			movingColor = -1;
+			movingPiece = -1;
 		}
 		draggingPiece = false;
 		ActivePiece = null;
-		
+		redraw();
 	}
 
 	@Override
