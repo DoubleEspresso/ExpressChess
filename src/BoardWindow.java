@@ -22,6 +22,7 @@ public class BoardWindow extends TestWindow
 	private Boolean draggingPiece = false;
 	private Texture ActivePiece;
 	private Vec2 MousePos = new Vec2(0,0);
+	private Vec2 BoardDims = new Vec2(0,0);
 	
 	public BoardWindow(Composite parent) 
 	{
@@ -108,7 +109,9 @@ public class BoardWindow extends TestWindow
 	public void renderSquares(GL gl, int w, int h)
 	{
 		float dX = (float) w / 8f;
-		float dY = (float) h / 8f;	
+		float dY = (float) h / 8f;
+		float oX = (getClientArea().width - w)/2f;
+		float oY = (getClientArea().height - h)/2f;
 		Texture t;		
 		
 		glEnable(GL_TEXTURE_2D);
@@ -128,10 +131,10 @@ public class BoardWindow extends TestWindow
 				r = 7 - r; // start from "white" row
 
 				glBegin(GL_QUADS);
-	        	glTexCoord2f(0, 0); glVertex2d(c*dX, r*dY);
-	        	glTexCoord2f(1, 0); glVertex2d((c+1)*dX, r*dY);
-	        	glTexCoord2f(1, 1); glVertex2d((c+1)*dX, (r+1)*dY);
-	        	glTexCoord2f(0, 1); glVertex2d(c*dX, (r+1)*dY);
+	        	glTexCoord2f(0, 0); glVertex2d(oX + c*dX, oY+r*dY);
+	        	glTexCoord2f(1, 0); glVertex2d(oX + (c+1)*dX, oY + r*dY);
+	        	glTexCoord2f(1, 1); glVertex2d(oX + (c+1)*dX, oY + (r+1)*dY);
+	        	glTexCoord2f(0, 1); glVertex2d(oX + c*dX, oY + (r+1)*dY);
 	        	glEnd();	        		        	
 			}		
 		}		
@@ -190,7 +193,9 @@ public class BoardWindow extends TestWindow
 	private void renderPiece(double x, double y, int r, int c)
 	{
 		int s = 8*(7-r) + c;
-
+		float oX = (float) ((getClientArea().width - 8*x)/2f);
+		float oY = (float) ((getClientArea().height - 8*y)/2f);
+		
 		if (position.hasPiece(s))
 		{
 			
@@ -213,15 +218,14 @@ public class BoardWindow extends TestWindow
 			glEnable(GL_BLEND); // blend to remove ugly piece background
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);		
 			glBegin(GL_QUADS);
-			glTexCoord2f(0, 0); glVertex2d(c*x, r*y);
-			glTexCoord2f(1, 0); glVertex2d((c+1)*x, r*y);
-			glTexCoord2f(1, 1); glVertex2d((c+1)*x, (r+1)*y);
-			glTexCoord2f(0, 1); glVertex2d(c*x, (r+1)*y);
+			glTexCoord2f(0, 0); glVertex2d(c*x+oX, r*y+oY);
+			glTexCoord2f(1, 0); glVertex2d((c+1)*x+oX, r*y+oY);
+			glTexCoord2f(1, 1); glVertex2d((c+1)*x+oX, (r+1)*y+oY);
+			glTexCoord2f(0, 1); glVertex2d(c*x+oX, (r+1)*y+oY);
 			glDisable(GL_BLEND);
 			glEnd();
 		}
 	}
-	
 	
 	@Override
 	public void onMouseScroll(MouseEvent e) 
@@ -230,7 +234,6 @@ public class BoardWindow extends TestWindow
 		
 	}
 
-	//@Override
 	public void paint(GL gl, int w, int h) 
 	{
 		if (!hasSquares || !hasPieces) return;
@@ -246,19 +249,32 @@ public class BoardWindow extends TestWindow
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		glLoadIdentity();
 		
-		renderSquares(gl, w, h);
+		fixAspectRatio(w,h);		
+		renderSquares(gl, (int) BoardDims.x, (int) BoardDims.y);
 
 	}
 
+	private void fixAspectRatio(int w, int h)
+	{     	
+    	float mind = (float)Math.min(w, h);
+    	float nw = (w >= mind ? mind : w);
+    	float nh = (h >= mind ? mind : h);
+
+    	BoardDims.x = nw; BoardDims.y = nh;
+	}
+	
 	public Vec2 squareFromMouse(Vec2 v)
-	{
+	{		
+		float oX = (float) ((getClientArea().width - BoardDims.x)/2f);
+		float oY = (float) ((getClientArea().height - BoardDims.y)/2f);
 		
-		Rectangle r = windowSize();
-		float dX = (float) r.width / 8f;
-		float dY = (float) r.height / 8f;
+		//Rectangle r = windowSize();
+
+		float dX = (float) (BoardDims.x / 8f);//(float) r.width / 8f;
+		float dY = (float) (BoardDims.y / 8f);//(float) r.height / 8f;
 		
-		int row = (int) Math.floor((float) v.y / dY);
-		int col = (int) Math.floor(v.x / dX);
+		int row = (int) Math.floor( (v.y - oY) / dY);
+		int col = (int) Math.floor( (v.x - oX) / dX);
 		
 		// flip row for display
 		row = 7 - row;

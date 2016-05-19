@@ -24,6 +24,7 @@ import org.eclipse.swt.events.MouseWheelListener;
 import org.eclipse.swt.events.PaintEvent;
 import org.eclipse.swt.events.PaintListener;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.opengl.GLCanvas;
 import org.eclipse.swt.opengl.GLData;
 
@@ -33,7 +34,7 @@ public abstract class TestWindow extends Composite
     protected int minWidth = 200;
     protected int minHeight = 200;
     private GLCanvas canvas = null;
-    
+    private Composite parent = null;
 	public TestWindow(Composite parent, int style) 
 	{
 		super(parent, style);
@@ -41,9 +42,9 @@ public abstract class TestWindow extends Composite
 		GLData d = new GLData();
 		d.doubleBuffer = true;
 		canvas = new GLCanvas(this, style, d);
-
-		canvas.setBounds(0, 0, 361, 361);
-		
+		this.parent = parent;
+		canvas.setBounds(0, 0, parent.getClientArea().width, parent.getClientArea().height);
+		canvas.setCurrent();
 		initialize();
 		
 	}
@@ -51,8 +52,6 @@ public abstract class TestWindow extends Composite
 	private void initialize()
 	{
         initGL();
-        canvas.setCurrent();
-        
         addResizeListener();
        	addMouseWheelListener();
        	addMouseMoveListener();
@@ -145,7 +144,7 @@ public abstract class TestWindow extends Composite
 	
 	private void addPaintListener()
 	{
-		addPaintListener(new PaintListener()
+		canvas.addPaintListener(new PaintListener()
 		{
 			@Override
 			public void paintControl(PaintEvent paintevent)
@@ -205,6 +204,7 @@ public abstract class TestWindow extends Composite
 			setSize(r.width, minHeight);
 			return;
 		}
+		canvas.setBounds(0, 0, r.width, r.height);
 		canvas.setCurrent();
 		onResize(r.width, r.height);
 		refresh();
