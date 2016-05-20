@@ -11,12 +11,14 @@ public class Position {
 	private int[] pieceDiffs = null;
 
 	public static enum Squares {
-		A1(0), B1(1), C1(2), D1(3), E1(4), F1(5), G1(6), H1(7), A2(8), B2(9), C2(10), D2(11), E2(12), F2(13), G2(
-				14), H2(15), A3(16), B3(17), C3(18), D3(19), E3(20), F3(21), G3(22), H3(23), A4(
-						24), B4(25), C4(26), D4(27), E4(28), F4(29), G4(30), H4(31), A5(32), B5(33), C5(34), D5(35), E5(
-								36), F5(37), G5(38), H5(39), A6(40), B6(41), C6(42), D6(43), E6(44), F6(45), G6(46), H6(
-										47), A7(48), B7(49), C7(50), D7(51), E7(52), F7(53), G7(54), H7(55), A8(56), B8(
-												57), C8(58), D8(59), E8(60), F8(61), G8(62), H8(63), SQ_NONE(64);
+		A1(0), B1(1), C1(2), D1(3), E1(4), F1(5), G1(6), H1(7), 
+		A2(8), B2(9), C2(10), D2(11), E2(12), F2(13), G2(14), H2(15), 
+		A3(16), B3(17), C3(18), D3(19), E3(20), F3(21), G3(22), H3(23), 
+		A4(24), B4(25), C4(26), D4(27), E4(28), F4(29), G4(30), H4(31), 
+		A5(32), B5(33), C5(34), D5(35), E5(36), F5(37), G5(38), H5(39), 
+		A6(40), B6(41), C6(42), D6(43), E6(44), F6(45), G6(46), H6(47), 
+		A7(48), B7(49), C7(50), D7(51), E7(52), F7(53), G7(54), H7(55), 
+		A8(56), B8(57), C8(58), D8(59), E8(60), F8(61), G8(62), H8(63), SQ_NONE(64);
 
 		private int sq;
 
@@ -94,11 +96,36 @@ public class Position {
 	public Position(String fen) {
 		if (!Load(fen)) {
 			System.out.println("..Warning failed to load position " + fen);
+			
 		}
+
 	}
 
 	public String toFen() {
-		return "";
+		String fen = "";
+		
+		for (int r = 7; r>=0; --r)
+		{
+			int empties = 0;
+			for (int c = 0; c < 8; ++c)
+			{
+				int s = r * 8 + c;
+				if (isEmpty(s)) { ++empties; continue; }
+				
+				if (empties > 0) 
+				{
+					fen += empties; empties = 0;
+				}
+				fen += SanPiece.charAt((colorOn[s] == BLACK ? pieceOn[s]+6 : pieceOn[s]));	
+			}
+			if (empties > 0) 
+			{
+				fen += empties; 
+			}
+			if (r > 0) fen += "/";
+		}
+
+		return fen;
 	}
 
 	public Boolean Load(String fen) {
@@ -286,17 +313,23 @@ public class Position {
 		}
 	}
 
-	public Boolean isLegal(int from, int to, int piece, int color) 
-	{
-		if (color != stm) return false;
-		
-		if (!isPseudoLegal(from, to, piece, color))
+	public Boolean isLegal(int from, int to, int piece, int color) {
+		if (color != stm)
+			return false;
+
+		if (isCastle(from, to, piece, color)) 
+		{
+			if (!isLegalCastle(from, to, piece, color)) return false;
+			clearAllCastleRights(color);
+			return true;			
+		} else if (!isPseudoLegal(from, to, piece, color))
 			return false;
 
 		// check pins/checks etc.
 		doMove(from, to, piece, color);
-		
-		// store move state -- kingInCheck calls pseudoLegalMv routines, which update the movestate
+
+		// store move state -- kingInCheck calls pseudoLegalMv routines, which
+		// update the movestate
 		// which is not wanted, since we need to undo the move...
 		int tmp_capturedPiece = capturedPiece;
 		int tmp_promotedPiece = promotedPiece;
@@ -305,10 +338,10 @@ public class Position {
 		Boolean tmp_moveIsCapture = moveIsCapture;
 		Boolean tmp_moveIsPromotion = moveIsPromotion;
 		Boolean tmp_moveIsPromotionCapture = moveIsPromotionCapture;
-		Boolean tmp_moveIsCastle =moveIsCastle;
-		
+		Boolean tmp_moveIsCastle = moveIsCastle;
+
 		Boolean inCheck = kingInCheck(color);
-				
+
 		// restore move state
 		capturedPiece = tmp_capturedPiece;
 		promotedPiece = tmp_promotedPiece;
@@ -318,19 +351,27 @@ public class Position {
 		moveIsPromotion = tmp_moveIsPromotion;
 		moveIsPromotionCapture = tmp_moveIsPromotionCapture;
 		moveIsCastle = tmp_moveIsCastle;
-		
-		if (inCheck) 
-		{
-			System.out.println("..illegal move, in check!");
+
+		if (inCheck) {
+			//System.out.println("..illegal move, in check!");
 			undoMove(to, from, piece, color);
 			return false;
 		}
+		
+		
+		// move is legal -- update position data 
+		if (pieceOn[to] == Piece.KING.P()) clearCastleRights(color); // in case king has moved
+		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A1.S() && color == WHITE) clearCastleRights(W_QS);
+		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H1.S() && color == WHITE) clearCastleRights(W_KS);
+		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A8.S() && color == BLACK) clearCastleRights(B_QS);
+		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H8.S() && color == BLACK) clearCastleRights(B_KS);
+
 		undoMove(to, from, piece, color);
+		// save fen state		
 		return true;
 	}
 
-	public void clearMoveData()
-	{
+	public void clearMoveData() {
 		capturedPiece = -1;
 		promotedPiece = -1;
 		prevCastleRights = -1;
@@ -340,7 +381,7 @@ public class Position {
 		moveIsPromotionCapture = false;
 		moveIsCastle = false;
 	}
-	
+
 	public Boolean isPseudoLegal(int from, int to, int piece, int color) {
 		if (pieceColorAt(to) == color)
 			return false;
@@ -361,6 +402,116 @@ public class Position {
 		return false;
 	}
 
+	public Boolean isCastle(int from, int to, int piece, int color) {
+		if (piece != Piece.KING.P())
+		{
+			//System.out.println("isCastle piece != king");
+			return false;
+		}
+		if (getPiece(from) != Piece.KING.P())
+		{
+			//System.out.println("isCastle wrong from sq");
+			return false;
+		}
+		if (from != (color == WHITE ? Squares.E1.S() : Squares.E8.S()))
+		{
+			//System.out.println("isCastle wrong from sq2");
+			return false;
+		}
+
+		if (color == WHITE) {
+			if (to != Squares.G1.S() && to != Squares.C1.S())
+			{
+				//System.out.println("isCastle wrong to sq " + to + " for to sq.." + Squares.G1.S());
+				return false;
+			}
+		} else {
+			if (to != Squares.G8.S() && to != Squares.C8.S())
+				return false;
+		}
+		return true;
+	}
+
+	
+	public Boolean isLegalCastle(int from, int to, int piece, int color) {
+		if (!hasCastleRights(to, color))
+			return false;
+
+		int sqLeft1 = (color == WHITE ? Squares.D1.S() : Squares.D8.S());
+		int sqLeft2 = (color == WHITE ? Squares.C1.S() : Squares.C8.S());
+		int sqRight1 = (color == WHITE ? Squares.F1.S() : Squares.F8.S());
+		int sqRight2 = (color == WHITE ? Squares.G1.S() : Squares.G8.S());
+
+		if (to == sqRight2) {
+			if (!isEmpty(sqRight1) && !isEmpty(sqRight2))
+			{
+				//System.out.println("isLegalCastle rsqs2 not empty");
+				return false;
+			}
+			if (isAttacked(sqRight1, color) || isAttacked(sqRight2, color))
+			{
+				//System.out.println("isLegalCastle rsqs1 not empty");
+				return false;
+			}
+			if (kingInCheck(color))
+			{
+				//System.out.println("isLegalCastle king in check .. ");
+				return false;
+			}
+		} else {
+			if (!isEmpty(sqLeft1) && !isEmpty(sqLeft2))
+				return false;
+			if (isAttacked(sqRight1, color) || isAttacked(sqRight2, color))
+				return false;
+			if (kingInCheck(color))
+				return false;
+		}
+		moveIsCastle = true;
+		return true;
+	}
+
+	public Boolean hasCastleRights(int to, int color) {
+		int ks = (color == WHITE ? (crights & 1) : (crights & 4));
+		int qs = (color == WHITE ? (crights & 2) : (crights & 8));
+		if (color == WHITE) {
+			if (to == Squares.G1.S() && (ks == 1))
+			{
+				//System.out.println("hasCastleRights has ks crs");
+				return true;
+			}
+			else if (to == Squares.C1.S() && (qs == 2))
+			{
+				//System.out.println("hasCastleRights has qs crs");
+				return true;
+			}
+		} else {
+			if (to == Squares.G8.S() && (ks == 4))
+				return true;
+			else if (to == Squares.C8.S() && (qs == 8))
+				return true;
+		}
+		//System.out.println("hasCastleRights no correct crs");
+		return false;
+	}
+
+	public void clearAllCastleRights(int color)
+	{
+		//System.out.println("all cr before: " + crights);
+		if (color == WHITE)
+		{
+			crights = (crights & 12);
+		}
+		else crights = (crights & 3);
+		//System.out.println("all cr after: " + crights);
+	}
+	
+	public void clearCastleRights(int side)
+	{
+		//System.out.println("cr before: side " + side + " "  + crights);
+		crights = (crights & (~side));
+		//System.out.println("all cr after: " + crights);
+	}
+	
 	int rowOf(int from) {
 		return (from >> 3);
 	}
@@ -410,52 +561,36 @@ public class Position {
 
 		Boolean on7 = (color == WHITE ? (rowOf(from) == 6) : (rowOf(from) == 1));
 		Boolean on2 = (color == WHITE ? (rowOf(from) == 1) : (rowOf(from) == 6));
-		if (on2) 
-		{
+		if (on2) {
 			if ((from + forward1) == to && isEmpty(to))
 				return true;
 			else if ((from + forward2) == to && isEmpty(to))
 				return true;
-			else if ((from + capRight) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to))
-			{
+			else if ((from + capRight) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
+				moveIsCapture = true;
+				return true;
+			} else if ((from + capLeft) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
 				moveIsCapture = true;
 				return true;
 			}
-			else if ((from + capLeft) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to))
-			{
-				moveIsCapture = true;
-				return true;
-			}
-		} 
-		else if (on7)
-		{
-			if ((from + forward1) == to && isEmpty(to))
-			{
+		} else if (on7) {
+			if ((from + forward1) == to && isEmpty(to)) {
 				moveIsPromotion = true;
 				return true;
-			}
-			else if ((from + capRight) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to))
-			{
-				moveIsPromotionCapture = true; 
+			} else if ((from + capRight) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
+				moveIsPromotionCapture = true;
+				return true;
+			} else if ((from + capLeft) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
+				moveIsPromotionCapture = true;
 				return true;
 			}
-			else if ((from + capLeft) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to))
-			{
-				moveIsPromotionCapture = true; 
-				return true;
-			}
-		}
-		else 
-		{
+		} else {
 			if ((from + forward1) == to && isEmpty(to))
 				return true;
-			else if ((from + capRight) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to))
-			{
+			else if ((from + capRight) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
 				moveIsCapture = true;
 				return true;
-			}
-			else if ((from + capLeft) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to))
-			{
+			} else if ((from + capLeft) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
 				moveIsCapture = true;
 				return true;
 			}
@@ -465,8 +600,7 @@ public class Position {
 		return false;
 	}
 
-	private Boolean pseudoLegalKnightMove(int from, int to, int color) 
-	{
+	private Boolean pseudoLegalKnightMove(int from, int to, int color) {
 		int[] deltas = { 16 - 1, 16 + 1, 2 + 8, 2 - 8, -16 + 1, -16 - 1, -2 - 8, -2 + 8 };
 		int enemy = (color == WHITE ? BLACK : WHITE);
 
@@ -478,8 +612,7 @@ public class Position {
 				return false;
 			else if (onBoard(t) && isEmpty(to) && !enemyOn(to, enemy))
 				return true;
-			else if (onBoard(t) && !isEmpty(to) && enemyOn(to, enemy))
-			{
+			else if (onBoard(t) && !isEmpty(to) && enemyOn(to, enemy)) {
 				moveIsCapture = true;
 				return true;
 			}
@@ -487,8 +620,7 @@ public class Position {
 		return false;
 	}
 
-	private Boolean pseudoLegalBishopMove(int from, int to, int color) 
-	{
+	private Boolean pseudoLegalBishopMove(int from, int to, int color) {
 
 		int[] deltas = { 7, 9, -7, -9 };
 		int enemy = (color == WHITE ? BLACK : WHITE);
@@ -499,12 +631,9 @@ public class Position {
 			while (onBoard(t) && onDiag(from, t) && (isEmpty(t) || enemyOn(t, enemy))) {
 				if (!isEmpty(t) && t != to)
 					break;
-				else if (isEmpty(t) && t == to)
-				{
+				else if (isEmpty(t) && t == to) {
 					return true;
-				}
-				else if (enemyOn(t, enemy) && t == to)
-				{
+				} else if (enemyOn(t, enemy) && t == to) {
 					moveIsCapture = true;
 					return true;
 				}
@@ -527,8 +656,7 @@ public class Position {
 					break;
 				else if (t == to && isEmpty(t))
 					return true;
-				else if (enemyOn(t, enemy) && t == to)
-				{
+				else if (enemyOn(t, enemy) && t == to) {
 					moveIsCapture = true;
 					return true;
 				}
@@ -540,8 +668,7 @@ public class Position {
 		return false;
 	}
 
-	private Boolean pseudoLegalQueenMove(int from, int to, int color) 
-	{
+	private Boolean pseudoLegalQueenMove(int from, int to, int color) {
 		if (onDiag(from, to))
 			return pseudoLegalBishopMove(from, to, color);
 		else if (onRow(from, to) || onCol(from, to))
@@ -549,8 +676,7 @@ public class Position {
 		return false;
 	}
 
-	private Boolean pseudoLegalKingMove(int from, int to, int color) 
-	{
+	private Boolean pseudoLegalKingMove(int from, int to, int color) {
 		int[] deltas = { 1, -1, 7, 9, 8, -8, -7, -9 };
 		int enemy = (color == WHITE ? BLACK : WHITE);
 		for (int j = 0; j < deltas.length; ++j) {
@@ -559,9 +685,9 @@ public class Position {
 			if (onBoard(t) && (isEmpty(t) || enemyOn(t, enemy))) {
 				if (!isEmpty(t) && !enemyOn(t, enemy))
 					return false;
-				else if (isEmpty(t) && t == to) return true;
-				else if (enemyOn(t, enemy) && t == to)
-				{
+				else if (isEmpty(t) && t == to)
+					return true;
+				else if (enemyOn(t, enemy) && t == to) {
 					moveIsCapture = true;
 					return true;
 				}
@@ -616,7 +742,44 @@ public class Position {
 					}
 			}
 		}
-		
+		else if (moveIsCastle)
+		{
+			if (color == WHITE) // remove black piece
+			{
+				int rookFrom = ( to == Squares.G1.S() ? Squares.H1.S() : Squares.A1.S());
+				int rookto = ( to == Squares.G1.S() ? Squares.F1.S() : Squares.D1.S());
+				List<Integer> wsquares = getPieceSquares(WHITE, getPiece(rookFrom));
+				for (int j = 0; j < wsquares.size(); ++j)
+					if (rookFrom == wsquares.get(j)) 
+					{
+						wPieceSquares.get(Piece.ROOK.P()).remove(j); // remove from sq
+						wPieceSquares.get(Piece.ROOK.P()).add(rookto); // add to sq
+					}				
+				pieceOn[rookFrom] = Piece.PIECE_NONE.P();
+				pieceOn[rookto] = Piece.ROOK.P();
+				colorOn[rookFrom] = COLOR_NONE;
+				colorOn[rookto] = color;
+				//clearCastleRights(color);
+			}
+			else
+			{
+				int rookFrom = ( to == Squares.G8.S() ? Squares.H8.S() : Squares.A8.S());
+				int rookto = ( to == Squares.G8.S() ? Squares.F8.S() : Squares.D8.S());
+				List<Integer> bsquares = getPieceSquares(BLACK, getPiece(rookFrom));
+				for (int j = 0; j < bsquares.size(); ++j)
+					if (rookFrom == bsquares.get(j)) 
+					{
+						bPieceSquares.get(Piece.ROOK.P()).remove(j); // remove from sq
+						bPieceSquares.get(Piece.ROOK.P()).add(rookto); // add to sq
+					}				
+				pieceOn[rookFrom] = Piece.PIECE_NONE.P();
+				pieceOn[rookto] = Piece.ROOK.P();
+				colorOn[rookFrom] = COLOR_NONE;
+				colorOn[rookto] = color;
+				//clearCastleRights(color);
+			}
+		}
+				
 		pieceOn[from] = Piece.PIECE_NONE.P();
 		pieceOn[to] = piece;
 
@@ -628,7 +791,7 @@ public class Position {
 	}
 
 	public Boolean undoMove(int from, int to, int piece, int color) {
-		
+
 		if (color == WHITE) {
 			List<Integer> wsquares = getPieceSquares(WHITE, getPiece(from));
 			for (int j = 0; j < wsquares.size(); ++j)
@@ -645,74 +808,160 @@ public class Position {
 					bPieceSquares.get(piece).add(to);
 				}
 		}
-		if (moveIsCapture) 
-		{
+		if (moveIsCapture) {
 			if (color == WHITE) // add back white piece (do move updated stm)
 			{
 				bPieceSquares.get(capturedPiece).add(from);
 			} else {
-				wPieceSquares.get(capturedPiece).add(from);				
+				wPieceSquares.get(capturedPiece).add(from);
+			}
+		}
+		else if (moveIsCastle)
+		{
+			if (color == WHITE) // remove black piece
+			{
+				int rookFrom = ( from == Squares.G1.S() ? Squares.F1.S() : Squares.D1.S());
+				int rookto = ( from == Squares.F1.S() ? Squares.H1.S() : Squares.A1.S());
+				List<Integer> wsquares = getPieceSquares(WHITE, getPiece(rookFrom));
+				for (int j = 0; j < wsquares.size(); ++j)
+					if (rookFrom == wsquares.get(j)) 
+					{
+						wPieceSquares.get(Piece.ROOK.P()).remove(j); // remove from sq
+						wPieceSquares.get(Piece.ROOK.P()).add(rookto); // add to sq
+					}				
+				pieceOn[rookFrom] = Piece.PIECE_NONE.P();
+				pieceOn[rookto] = Piece.ROOK.P();
+				colorOn[rookFrom] = COLOR_NONE;
+				colorOn[rookto] = color;
+				//clearCastleRights(color);
+			}
+			else
+			{
+				int rookFrom = ( to == Squares.G8.S() ? Squares.F8.S() : Squares.D8.S());
+				int rookto = ( to == Squares.F8.S() ? Squares.H8.S() : Squares.A8.S());
+				List<Integer> bsquares = getPieceSquares(BLACK, getPiece(rookFrom));
+				for (int j = 0; j < bsquares.size(); ++j)
+					if (rookFrom == bsquares.get(j)) 
+					{
+						bPieceSquares.get(Piece.ROOK.P()).remove(j); // remove from sq
+						bPieceSquares.get(Piece.ROOK.P()).add(rookto); // add to sq
+					}				
+				pieceOn[rookFrom] = Piece.PIECE_NONE.P();
+				pieceOn[rookto] = Piece.ROOK.P();
+				colorOn[rookFrom] = COLOR_NONE;
+				colorOn[rookto] = color;
+				//clearCastleRights(color);
 			}
 		}
 		pieceOn[from] = (moveIsCapture ? capturedPiece : Piece.PIECE_NONE.P());
 		pieceOn[to] = piece;
 
-		colorOn[from] = (moveIsCapture ? stm : COLOR_NONE); 
+		colorOn[from] = (moveIsCapture ? stm : COLOR_NONE);
 		colorOn[to] = color;
 
 		stm = (stm == WHITE ? BLACK : WHITE);
 
 		return true;
 	}
-	
-	// c denotes the color of the king "in check" .. it is only called after a "do-move"
-	// and do-move updates the current side to move, so if white just made a move, stm=black, and we want
+
+	// c denotes the color of the king "in check" .. it is only called after a
+	// "do-move"
+	// and do-move updates the current side to move, so if white just made a
+	// move, stm=black, and we want
 	// to check if white's king is in check (so c == white).
-	public Boolean kingInCheck(int c)
-	{		
-		int ks = getPieceSquares(c, Piece.KING.P()).get(0); // should only ever be 1 king
+	public Boolean kingInCheck(int c) {
+		int ks = getPieceSquares(c, Piece.KING.P()).get(0); // should only ever
+															// be 1 king
 		int enemy = (c == WHITE ? BLACK : WHITE);
-						
+
 		// pawn checks
 		List<Integer> psquares = getPieceSquares(enemy, Piece.PAWN.P());
-		for (int j = 0; j < psquares.size(); ++j)
-		{
+		for (int j = 0; j < psquares.size(); ++j) {
 			int to = psquares.get(j);
-			if (pseudoLegalPawnMove(ks, to, c)) return true;
+			if (pseudoLegalPawnMove(ks, to, c))
+				return true;
 		}
-		
+
 		// knight checks
 		List<Integer> nsquares = getPieceSquares(enemy, Piece.KNIGHT.P());
-		for (int j = 0; j < nsquares.size(); ++j)
-		{
+		for (int j = 0; j < nsquares.size(); ++j) {
 			int to = nsquares.get(j);
-			if (pseudoLegalKnightMove(ks, to, c)) return true;
+			if (pseudoLegalKnightMove(ks, to, c))
+				return true;
 		}
-		
-		// bishop checks .. return a list of "to" squares being the enemy bishops		
+
+		// bishop checks .. return a list of "to" squares being the enemy
+		// bishops
 		List<Integer> bsquares = getPieceSquares(enemy, Piece.BISHOP.P());
-		for (int j = 0; j < bsquares.size(); ++j)
-		{
+		for (int j = 0; j < bsquares.size(); ++j) {
 			int to = bsquares.get(j);
-			if (pseudoLegalBishopMove(ks, to, c)) return true;
+			if (pseudoLegalBishopMove(ks, to, c))
+				return true;
 		}
-		
+
 		// rook checks
 		List<Integer> rsquares = getPieceSquares(enemy, Piece.ROOK.P());
-		for (int j = 0; j < rsquares.size(); ++j)
-		{
+		for (int j = 0; j < rsquares.size(); ++j) {
 			int to = rsquares.get(j);
-			if (pseudoLegalRookMove(ks, to, c)) return true;
+			if (pseudoLegalRookMove(ks, to, c))
+				return true;
 		}
-		
+
 		// queen checks
 		List<Integer> qsquares = getPieceSquares(enemy, Piece.QUEEN.P());
-		for (int j = 0; j < qsquares.size(); ++j)
-		{
+		for (int j = 0; j < qsquares.size(); ++j) {
 			int to = qsquares.get(j);
-			if (pseudoLegalQueenMove(ks, to, c)) return true;
+			if (pseudoLegalQueenMove(ks, to, c))
+				return true;
 		}
-		
+
+		return false;
+	}
+
+	public Boolean isAttacked(int from, int c) {
+		int enemy = (c == WHITE ? BLACK : WHITE);
+
+		// pawn checks
+		List<Integer> psquares = getPieceSquares(enemy, Piece.PAWN.P());
+		for (int j = 0; j < psquares.size(); ++j) {
+			int to = psquares.get(j);
+			if (pseudoLegalPawnMove(from, to, c))
+				return true;
+		}
+
+		// knight checks
+		List<Integer> nsquares = getPieceSquares(enemy, Piece.KNIGHT.P());
+		for (int j = 0; j < nsquares.size(); ++j) {
+			int to = nsquares.get(j);
+			if (pseudoLegalKnightMove(from, to, c))
+				return true;
+		}
+
+		// bishop checks .. return a list of "to" squares being the enemy
+		// bishops
+		List<Integer> bsquares = getPieceSquares(enemy, Piece.BISHOP.P());
+		for (int j = 0; j < bsquares.size(); ++j) {
+			int to = bsquares.get(j);
+			if (pseudoLegalBishopMove(from, to, c))
+				return true;
+		}
+
+		// rook checks
+		List<Integer> rsquares = getPieceSquares(enemy, Piece.ROOK.P());
+		for (int j = 0; j < rsquares.size(); ++j) {
+			int to = rsquares.get(j);
+			if (pseudoLegalRookMove(from, to, c))
+				return true;
+		}
+
+		// queen checks
+		List<Integer> qsquares = getPieceSquares(enemy, Piece.QUEEN.P());
+		for (int j = 0; j < qsquares.size(); ++j) {
+			int to = qsquares.get(j);
+			if (pseudoLegalQueenMove(from, to, c))
+				return true;
+		}
+
 		return false;
 	}
 }

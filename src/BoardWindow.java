@@ -37,6 +37,8 @@ public class BoardWindow extends TestWindow
 		{
 			System.out.println("ERROR: failed to load starting position!");
 		}
+		System.out.println("input fen " + Position.StartFen + " parsed fen: " + position.toFen());
+		
 		loadBoardTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light");
 		loadPiecesTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132");		
 	}
