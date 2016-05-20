@@ -62,6 +62,7 @@ public class Position {
 	}
 
 	public final String SanPiece = "PNBRQKpnbrqk";
+	public final String SanCols = "abcdefgh";
 
 	public final int W_KS = 1;
 	public final int W_QS = 2;
@@ -81,8 +82,7 @@ public class Position {
 	private Boolean gameFinished = false; // for mate/draw global flag
 	private int capturedPiece = -1;
 	private int promotedPiece = -1;
-	private int prevCastleRights = -1;
-	private int prevEPsquare = -1;
+	private Boolean moveIsEP = false;
 	private Boolean moveIsCapture = false;
 	private Boolean moveIsPromotion = false;
 	private Boolean moveIsPromotionCapture = false;
@@ -135,6 +135,7 @@ public class Position {
 		
 		fen += (stm == WHITE ? " w" : " b");
 
+		// castle rights
 		String castleRights = "";
 		if ( (crights & W_KS) == W_KS) castleRights += "K";
 		if ( (crights & W_QS) == W_QS) castleRights += "Q";
@@ -142,10 +143,23 @@ public class Position {
 		if ( (crights & B_QS) == B_QS) castleRights += "q";
 		fen += (castleRights == "" ? " -" : " " + castleRights);
 		
+		// ep-square
+		String epSq = "";
+		if (EP_SQ != 0)
+		{
+			epSq += SanCols.charAt(colOf(EP_SQ)) + Integer.toString(rowOf(EP_SQ)+1);
+		}
+		fen += (epSq == "" ? " -" : " " + epSq);
+		
+		
+		// move50
+		
+		// half-mvs
 		return fen;
 	}
 
 	public Boolean Load(String fen) {
+		System.out.println("loading fen " + fen);
 		clear();
 		int s = Squares.A8.S();
 		String[] split_fen = fen.split("\\s+");
@@ -205,13 +219,16 @@ public class Position {
 			int row = 0;
 			char c = split_fen[3].charAt(0);
 			if (c != '-') {
-				if (c >= 'a' && c <= 'h')
-					col = (int) (c - 'a');
-				if (c == '3' || c == '6')
-					row = (int) (c - '1');
+				for(int j=0; j<SanCols.length(); ++j)
+				{
+					if (SanCols.charAt(j) == c) col = j;
+				}
+				c = (split_fen[3].charAt(1));
+				row = (c - '0')-1;
 				EP_SQ = 8 * row + col;
 			} else
 				EP_SQ = 0;
+			//System.out.println("EP_SQ = " + EP_SQ);
 		}
 		// the half-moves since last pawn move/capture
 		if (split_fen.length <= 4)
@@ -236,6 +253,15 @@ public class Position {
 		Move50 = 0;
 		HalfMvs = 0;
 		displayedMove = 0; // needed?
+		
+		gameFinished = false; // for mate/draw global flag
+		capturedPiece = -1;
+		promotedPiece = -1;
+		moveIsEP = false;
+		moveIsCapture = false;
+		moveIsPromotion = false;
+		moveIsPromotionCapture = false;
+		moveIsCastle = false;		
 		
 		if (wPieceSquares == null) {
 			wPieceSquares = new ArrayList<List<Integer>>();
@@ -358,24 +384,22 @@ public class Position {
 		// which is not wanted, since we need to undo the move...
 		int tmp_capturedPiece = capturedPiece;
 		int tmp_promotedPiece = promotedPiece;
-		int tmp_prevCastleRights = prevCastleRights;
-		int tmp_prevEPsquare = prevEPsquare;
 		Boolean tmp_moveIsCapture = moveIsCapture;
 		Boolean tmp_moveIsPromotion = moveIsPromotion;
 		Boolean tmp_moveIsPromotionCapture = moveIsPromotionCapture;
 		Boolean tmp_moveIsCastle = moveIsCastle;
+		Boolean tmp_moveIsEP = moveIsEP;
 
 		Boolean inCheck = kingInCheck(color);
 
 		// restore move state
 		capturedPiece = tmp_capturedPiece;
 		promotedPiece = tmp_promotedPiece;
-		prevCastleRights = tmp_prevCastleRights;
-		prevEPsquare = tmp_prevEPsquare;
 		moveIsCapture = tmp_moveIsCapture;
 		moveIsPromotion = tmp_moveIsPromotion;
 		moveIsPromotionCapture = tmp_moveIsPromotionCapture;
 		moveIsCastle = tmp_moveIsCastle;
+		moveIsEP = tmp_moveIsEP;
 
 		if (inCheck) {
 			//System.out.println("..illegal move, in check!");
@@ -390,6 +414,22 @@ public class Position {
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A8.S() && color == BLACK) clearCastleRights(B_QS);
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H8.S() && color == BLACK) clearCastleRights(B_KS);
 		
+		// update EP square
+		EP_SQ = 0;
+		if (color == WHITE)
+		{
+			if (piece == Piece.PAWN.P() && to - from == 16)
+			{
+				EP_SQ = to - 8;
+			}
+		}
+		else
+		{
+			if (piece == Piece.PAWN.P() && from - to == 16)
+			{
+				EP_SQ = to + 8;
+			}	
+		}
 		// save fen state
 		++displayedMove;
 		FenPositions.add(new ArrayList<String>());		
@@ -425,8 +465,7 @@ public class Position {
 	public void clearMoveData() {
 		capturedPiece = -1;
 		promotedPiece = -1;
-		prevCastleRights = -1;
-		prevEPsquare = -1;
+		moveIsEP = false;
 		moveIsCapture = false;
 		moveIsPromotion = false;
 		moveIsPromotionCapture = false;
@@ -453,7 +492,8 @@ public class Position {
 		return false;
 	}
 
-	public Boolean isCastle(int from, int to, int piece, int color) {
+	
+    public Boolean isCastle(int from, int to, int piece, int color) {
 		if (piece != Piece.KING.P())
 		{
 			//System.out.println("isCastle piece != king");
@@ -609,14 +649,18 @@ public class Position {
 		int forward2 = (color == WHITE ? 16 : -16);
 		int capRight = (color == WHITE ? 7 : -7);
 		int capLeft = (color == WHITE ? 9 : -9);
-
+		
+		Boolean on4 = (color == WHITE ? (rowOf(from) == 4) : (rowOf(from) == 3));
 		Boolean on7 = (color == WHITE ? (rowOf(from) == 6) : (rowOf(from) == 1));
 		Boolean on2 = (color == WHITE ? (rowOf(from) == 1) : (rowOf(from) == 6));
+		
 		if (on2) {
 			if ((from + forward1) == to && isEmpty(to))
 				return true;
 			else if ((from + forward2) == to && isEmpty(to))
+			{
 				return true;
+			}
 			else if ((from + capRight) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
 				moveIsCapture = true;
 				return true;
@@ -624,7 +668,18 @@ public class Position {
 				moveIsCapture = true;
 				return true;
 			}
-		} else if (on7) {
+		} else if (on4 && EP_SQ == to) // EP move?
+		{
+			int epTo = (color == WHITE ? to-8 : to+8);
+			if ((from + capRight) == to && enemyOn(epTo, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
+				moveIsEP = true;
+				return true;
+			} else if ((from + capLeft) == to && enemyOn(epTo, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
+				moveIsEP = true;
+				return true;
+			}
+		}		
+		else if (on7) {
 			if ((from + forward1) == to && isEmpty(to)) {
 				moveIsPromotion = true;
 				return true;
@@ -647,7 +702,7 @@ public class Position {
 			}
 		}
 
-		// TODO: handle ep and promotions
+		// TODO: handle promotions
 		return false;
 	}
 
@@ -793,6 +848,31 @@ public class Position {
 					}
 			}
 		}
+		else if (moveIsEP)
+		{
+			int epTo = (color == WHITE ? to-8 : to+8);
+			capturedPiece = pieceOn[epTo];
+			if (color == WHITE) // remove black piece
+			{
+				List<Integer> bsquares = getPieceSquares(BLACK, getPiece(epTo));
+				for (int j = 0; j < bsquares.size(); ++j)
+					if (epTo == bsquares.get(j)) 
+					{
+						bPieceSquares.get(capturedPiece).remove(j); // remove piece @ to sq
+					}
+			}
+			else
+			{
+				List<Integer> wsquares = getPieceSquares(WHITE, getPiece(epTo));
+				for (int j = 0; j < wsquares.size(); ++j)
+					if (epTo == wsquares.get(j)) 
+					{
+						wPieceSquares.get(capturedPiece).remove(j); // remove piece @ to sq
+					}
+			}
+			pieceOn[epTo] = Piece.PIECE_NONE.P();
+			colorOn[epTo] = COLOR_NONE;
+		}
 		else if (moveIsCastle)
 		{
 			if (color == WHITE) // remove black piece
@@ -839,7 +919,7 @@ public class Position {
 		colorOn[to] = color;
 
 		stm = (stm == WHITE ? BLACK : WHITE);
-		
+	
 		if (moveIsCastle)
 		{
 			// save fen state (only place it works.....:/)
@@ -876,6 +956,20 @@ public class Position {
 			} else {
 				wPieceSquares.get(capturedPiece).add(from);
 			}
+		}
+		else if (moveIsEP)
+		{
+			int epTo = (color == WHITE ? from-8 : from+8);
+			if (color == WHITE) // remove black piece
+			{
+				bPieceSquares.get(capturedPiece).add(epTo);
+			}
+			else
+			{
+				wPieceSquares.get(capturedPiece).add(epTo);
+			}
+			pieceOn[epTo] = Piece.PAWN.P();
+			colorOn[epTo] = (color == WHITE ? BLACK : WHITE);
 		}
 		else if (moveIsCastle)
 		{

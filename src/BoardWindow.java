@@ -113,8 +113,7 @@ public class BoardWindow extends TestWindow
 		
 		return true;
 	}
-	
-	
+		
 	public void renderSquares(GL gl, int w, int h)
 	{
 		float dX = (float) w / 8f;
