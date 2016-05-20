@@ -228,7 +228,7 @@ public abstract class TestWindow extends Composite
 	
 	private void addMouseWheelListener()
 	{
-		addMouseWheelListener(new MouseWheelListener()
+		canvas.addMouseWheelListener(new MouseWheelListener()
 		{
 			@Override
 			public void mouseScrolled(MouseEvent e)

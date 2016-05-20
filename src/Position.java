@@ -5,6 +5,7 @@ import java.util.List;
 public class Position {
 	private List<List<Integer>> wPieceSquares = null; // [piece][square]
 	private List<List<Integer>> bPieceSquares = null;
+	private List<List<String>> FenPositions = null;
 	private int[] colorOn = null;
 	private int[] pieceOn = null;
 	private int[] kingSqs = null;
@@ -86,7 +87,8 @@ public class Position {
 	private Boolean moveIsPromotion = false;
 	private Boolean moveIsPromotionCapture = false;
 	private Boolean moveIsCastle = false;
-
+	private int displayedMove = 0;
+	
 	public static String StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 	public Position() {
@@ -101,6 +103,12 @@ public class Position {
 
 	}
 
+	public void setStartFen()
+	{
+		FenPositions.add(new ArrayList<String>());		
+		FenPositions.get(displayedMove).add(toFen());
+	}
+	
 	public String toFen() {
 		String fen = "";
 		
@@ -124,7 +132,16 @@ public class Position {
 			}
 			if (r > 0) fen += "/";
 		}
+		
+		fen += (stm == WHITE ? " w" : " b");
 
+		String castleRights = "";
+		if ( (crights & W_KS) == W_KS) castleRights += "K";
+		if ( (crights & W_QS) == W_QS) castleRights += "Q";
+		if ( (crights & B_KS) == B_KS) castleRights += "k";
+		if ( (crights & B_QS) == B_QS) castleRights += "q";
+		fen += (castleRights == "" ? " -" : " " + castleRights);
+		
 		return fen;
 	}
 
@@ -218,7 +235,8 @@ public class Position {
 		EP_SQ = 0;
 		Move50 = 0;
 		HalfMvs = 0;
-
+		displayedMove = 0; // needed?
+		
 		if (wPieceSquares == null) {
 			wPieceSquares = new ArrayList<List<Integer>>();
 		}
@@ -256,6 +274,12 @@ public class Position {
 			pieceDiffs = new int[6];
 		for (int i = 0; i < 6; ++i)
 			pieceDiffs[i] = 0;
+		
+		if (FenPositions == null) 
+		{
+			FenPositions = new ArrayList<List<String>>();
+			FenPositions.clear();
+		}
 	}
 
 	public Boolean hasPiece(int s) {
@@ -321,6 +345,7 @@ public class Position {
 		{
 			if (!isLegalCastle(from, to, piece, color)) return false;
 			clearAllCastleRights(color);
+
 			return true;			
 		} else if (!isPseudoLegal(from, to, piece, color))
 			return false;
@@ -357,19 +382,45 @@ public class Position {
 			undoMove(to, from, piece, color);
 			return false;
 		}
-		
-		
+			
 		// move is legal -- update position data 
 		if (pieceOn[to] == Piece.KING.P()) clearCastleRights(color); // in case king has moved
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A1.S() && color == WHITE) clearCastleRights(W_QS);
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H1.S() && color == WHITE) clearCastleRights(W_KS);
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A8.S() && color == BLACK) clearCastleRights(B_QS);
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H8.S() && color == BLACK) clearCastleRights(B_KS);
-
+		
+		// save fen state
+		++displayedMove;
+		FenPositions.add(new ArrayList<String>());		
+		FenPositions.get(displayedMove).add(toFen());
+		
 		undoMove(to, from, piece, color);
-		// save fen state		
+
 		return true;
 	}
+	
+	public String getPosition(int idx, int mvidx)
+	{
+		if (idx < 0 || idx > FenPositions.size()-1) return "";
+		return FenPositions.get(idx).get(mvidx);
+	}
+	
+	public int getDisplayedMoveIdx() { return displayedMove; }
+	
+	public void setDisplayedMoveIdx(int idx) { displayedMove = idx; }
+	
+	public int maxDisplayedMoveIdx() { return FenPositions.size()-1; }
+	
+	public Boolean setPositionFromFenStrings(int idx, int mvidx)
+	{
+		if (idx < 0 || idx > FenPositions.size()-1) return false;
+		if (mvidx < 0 || mvidx > FenPositions.get(idx).size()-1) return false;
+		if (!Load(FenPositions.get(idx).get(mvidx))) return false;
+		displayedMove = idx;
+		return true;
+	}
+	
 
 	public void clearMoveData() {
 		capturedPiece = -1;
@@ -778,6 +829,7 @@ public class Position {
 				colorOn[rookto] = color;
 				//clearCastleRights(color);
 			}
+
 		}
 				
 		pieceOn[from] = Piece.PIECE_NONE.P();
@@ -786,7 +838,16 @@ public class Position {
 		colorOn[from] = COLOR_NONE;
 		colorOn[to] = color;
 
-		stm = (stm == WHITE ? BLACK : WHITE);		
+		stm = (stm == WHITE ? BLACK : WHITE);
+		
+		if (moveIsCastle)
+		{
+			// save fen state (only place it works.....:/)
+			++displayedMove;
+			FenPositions.add(new ArrayList<String>());		
+			FenPositions.get(displayedMove).add(toFen());
+		}
+		
 		return true;
 	}
 

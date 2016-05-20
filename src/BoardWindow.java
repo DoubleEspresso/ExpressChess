@@ -15,6 +15,7 @@ public class BoardWindow extends TestWindow
 	private List<List<Texture>> wPieceTextures = null; // [piece][texture_id]
 	private List<List<Texture>> bPieceTextures = null; // [piece][texture_id]
 	private List<Texture> boardSquares = null;
+	
 
 	private Boolean hasSquares = false;
 	private Boolean hasPieces = false;
@@ -37,7 +38,8 @@ public class BoardWindow extends TestWindow
 		{
 			System.out.println("ERROR: failed to load starting position!");
 		}
-		System.out.println("input fen " + Position.StartFen + " parsed fen: " + position.toFen());
+		position.setStartFen();
+		//System.out.println("input fen " + Position.StartFen + " parsed fen: " + position.toFen());
 		
 		loadBoardTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light");
 		loadPiecesTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132");		
@@ -237,8 +239,18 @@ public class BoardWindow extends TestWindow
 	@Override
 	public void onMouseScroll(MouseEvent e) 
 	{
-		// TODO Auto-generated method stub
-		
+		int idx = position.getDisplayedMoveIdx();
+		if (e.count < 0)
+		{			
+			if ( (idx-1) < 0 ) return;
+			position.setPositionFromFenStrings(idx-1, 0);
+		}
+		else
+		{			
+			if ((idx+1) > position.maxDisplayedMoveIdx()) return;
+			position.setPositionFromFenStrings(idx+1, 0);
+		}
+		refresh();		
 	}
 
 	public void paint(GL gl, int w, int h) 
