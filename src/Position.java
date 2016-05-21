@@ -363,7 +363,7 @@ public class Position {
 		}
 	}
 
-	public Boolean isLegal(int from, int to, int piece, int color) {
+	public Boolean isLegal(int from, int to, int piece, int color, Boolean update) {
 		if (color != stm)
 			return false;
 
@@ -408,7 +408,7 @@ public class Position {
 		}
 			
 		// move is legal -- update position data 
-		if (pieceOn[to] == Piece.KING.P()) clearCastleRights(color); // in case king has moved
+		if (pieceOn[to] == Piece.KING.P()) clearAllCastleRights(color); // in case king has moved
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A1.S() && color == WHITE) clearCastleRights(W_QS);
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H1.S() && color == WHITE) clearCastleRights(W_KS);
 		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A8.S() && color == BLACK) clearCastleRights(B_QS);
@@ -430,10 +430,14 @@ public class Position {
 				EP_SQ = to + 8;
 			}	
 		}
-		// save fen state
-		++displayedMove;
-		FenPositions.add(new ArrayList<String>());		
-		FenPositions.get(displayedMove).add(toFen());
+		if (update)
+		{
+			// save fen state
+			++displayedMove;
+			FenPositions.add(new ArrayList<String>());		
+			FenPositions.get(displayedMove).add(toFen());
+			System.out.println(FenPositions.get(displayedMove));
+		}
 		
 		undoMove(to, from, piece, color);
 
@@ -1024,6 +1028,7 @@ public class Position {
 	// and do-move updates the current side to move, so if white just made a
 	// move, stm=black, and we want
 	// to check if white's king is in check (so c == white).
+	
 	public Boolean kingInCheck(int c) {
 		int ks = getPieceSquares(c, Piece.KING.P()).get(0); // should only ever
 															// be 1 king
@@ -1073,6 +1078,226 @@ public class Position {
 		return false;
 	}
 
+	
+	public List<Integer> squaresBetween(int s1, int s2)
+	{
+		List<Integer> squares = new ArrayList<Integer>();
+		if (onRow(s1, s2)) 
+			{
+				int delta =  1 ;
+				int from =  (colOf(s1) < colOf(s2)) ? s1 : s2;
+				int to =  (from == s1) ? s2 : s1;
+				int s = from + delta;
+				while (s < to ) 
+				{
+					squares.add(s); s += delta;
+				}
+					
+			}
+		else if (onCol(s1, s2))
+		{
+			int delta = 8;
+			int from =  (rowOf(s1) < rowOf(s2)) ? s1 : s2;
+			int to =  (from == s1) ? s2 : s1;
+			int s = from + delta;
+			while (s < to ) 
+			{
+				squares.add(s); s += delta;
+			}	
+		}
+		else if (onDiag(s1, s2))
+		{
+			
+			int delta = 0; int from = s1; int to = s2;
+			if (rowOf(from) < rowOf(to))
+			{
+				if (colOf(from) < colOf(to)) delta = 9;
+				else delta = 7;
+			}
+			else
+			{
+				if (colOf(from) < colOf(to)) delta = -7;
+				else delta = -9;
+			}
+			int s = from + delta;
+			while (s != to ) 
+			{
+				if (s != to) squares.add(s); s += delta;
+			}	
+		}
+		return squares;
+	}
+	
+	// check if current stm is in mate (from,to,piece) are enemy
+	public Boolean isMate(int from, int to, int piece, int enemy)
+	{
+		clearMoveData();
+		int ks = getPieceSquares(stm, Piece.KING.P()).get(0);
+		if (!isAttacked(ks, stm)) 
+			{ 
+				clearMoveData();
+				return false;
+			}
+		clearMoveData();
+		
+		System.out.println("..king attacked");
+		
+		// we are in check, can the king escape (includes king captures)
+		int[] tosqs = { ks + 1, ks-1, ks+8, ks-8, ks+7, ks+9, ks-7, ks-9 };
+		for(int j=0; j<tosqs.length; ++j)
+		{
+			//System.out.println("from = " + ks + " to = " + tosqs[j]);
+			if (isLegal(ks, tosqs[j], Piece.KING.P(), stm, false)) 
+			{
+				clearMoveData();
+				return false;
+			}
+			clearMoveData();
+		}
+		//System.out.println("..king cannot escape check");
+		
+		// is this a discovered check (means we need to adjust the attacking sq)
+		int dscTo = findDiscoveredChecks(ks, stm);
+		
+		Boolean isDiscovered = (dscTo != -1 && dscTo != to);
+		//if (isDiscovered) System.out.println("..findDiscoveredChecks @ " + dscTo + " piece = " + pieceOn[dscTo]);
+		clearMoveData();
+		
+		// king cannot capture/escape on its own, can we capture the checking piece legally?
+		if (canCapture(to, true)) return false;
+		clearMoveData();
+		//System.out.println("..cannot capture checking piece");
+		
+		if (isDiscovered)
+		{
+			if (canCapture(dscTo, true)) return false; // only *LEGAL* captures so double checks will fail this
+			clearMoveData();
+			System.out.println("..cannot capture discovered piece");
+		}
+		
+		// cannot capture checking piece legally, can we block the check?
+		if (piece != Piece.BISHOP.P() && piece != Piece.ROOK.P() && piece != Piece.QUEEN.P() && !isDiscovered) return true; // cannot block a stepping piece
+		//System.out.println("..piece is slider, check blocking moves");
+		
+		
+		List<Integer> bSqs = squaresBetween(ks, to); Boolean canBlock = false;
+		//System.out.println("..squaresBetween = " + bSqs.size());
+		for (int j=0; j<bSqs.size(); ++j)
+		{
+			int s = bSqs.get(j); 
+			//System.out.println("..check block @ sq = " + s);
+			
+			if (!isEmpty(s)) break;			
+			if (canCapture(s, false)) { canBlock = true; break; } // these are *LEGAL* blocking moves			
+			clearMoveData();
+		}
+		clearMoveData();
+		//if (!canBlock) System.out.println("..cannot block nondiscovered move");
+		
+		Boolean canBlockd = false;
+		if (isDiscovered)
+		{
+			List<Integer> bSqsd = squaresBetween(ks, dscTo); 
+			//System.out.println("..squaresBetween = " + bSqs.size());
+			for (int j=0; j<bSqsd.size(); ++j)
+			{
+				int s = bSqsd.get(j); 
+				//System.out.println("..check block @ sq = " + s);
+			
+				if (!isEmpty(s)) break;			
+				if (canCapture(s, false)) { canBlockd = true; break; }			
+				clearMoveData();
+			}
+			clearMoveData();
+
+			//if (!canBlockd ) System.out.println("..cannot block discovered move");
+		}
+		
+		return !canBlock && !canBlockd;
+	}
+	
+	int findDiscoveredChecks(int to, int stm)
+	{
+		int enemy = (stm == WHITE ? BLACK : WHITE);
+		
+		// bishop checks .. return a list of "to" squares being the enemy
+		// bishops
+		List<Integer> bsquares = getPieceSquares(enemy, Piece.BISHOP.P()); //System.out.println(bsquares);
+		for (int j = 0; j < bsquares.size(); ++j) {
+			int from = bsquares.get(j);
+			if (pseudoLegalBishopMove(from, to, enemy))
+				return from;
+		}
+
+		// rook checks
+		List<Integer> rsquares = getPieceSquares(enemy, Piece.ROOK.P()); //System.out.println(rsquares);
+		for (int j = 0; j < rsquares.size(); ++j) {
+			int from = rsquares.get(j);
+			if (pseudoLegalRookMove(from, to, enemy))
+				return from;
+		}
+
+		// queen checks
+		List<Integer> qsquares = getPieceSquares(enemy, Piece.QUEEN.P()); //System.out.println(qsquares);
+		for (int j = 0; j < qsquares.size(); ++j) {
+			int from = qsquares.get(j);
+			if (pseudoLegalQueenMove(from, to, enemy))
+				return from;
+		}
+		
+		return -1;
+	}
+	
+	public Boolean canCapture(int to, Boolean checkOccupied)
+	{
+		if (checkOccupied)
+		{
+			if (isEmpty(to)) return false;
+		}
+		
+		// pawn attacks .. nb: does not handle ep capture properly!!
+		List<Integer> psquares = getPieceSquares(stm, Piece.PAWN.P());
+		for (int j = 0; j < psquares.size(); ++j) {
+			int from = psquares.get(j);
+			if (isLegal(from, to, Piece.PAWN.P(), stm, false)) return true;
+			clearMoveData();
+		}
+
+		// knight attacks
+		List<Integer> nsquares = getPieceSquares(stm, Piece.KNIGHT.P());
+		for (int j = 0; j < nsquares.size(); ++j) {
+			int from = nsquares.get(j);
+			if (isLegal(from, to, Piece.KNIGHT.P(), stm, false)) return true;
+			clearMoveData();
+		}
+
+		// knight attacks
+		List<Integer> bsquares = getPieceSquares(stm, Piece.BISHOP.P());
+		for (int j = 0; j < bsquares.size(); ++j) {
+			int from = bsquares.get(j);
+			if (isLegal(from, to, Piece.BISHOP.P(), stm, false)) return true;
+			clearMoveData();
+		}
+
+		// rook attacks
+		List<Integer> rsquares = getPieceSquares(stm, Piece.ROOK.P());
+		for (int j = 0; j < rsquares.size(); ++j) {
+			int from = rsquares.get(j);
+			if (isLegal(from, to, Piece.ROOK.P(), stm, false)) return true;
+			clearMoveData();
+		}
+
+		// queen attacks
+		List<Integer> qsquares = getPieceSquares(stm, Piece.QUEEN.P());
+		for (int j = 0; j < qsquares.size(); ++j) {
+			int from = qsquares.get(j);
+			if (isLegal(from, to, Piece.QUEEN.P(), stm, false)) return true;
+			clearMoveData();
+		}
+		
+		return false;
+	}
+	
 	public Boolean isAttacked(int from, int c) {
 		int enemy = (c == WHITE ? BLACK : WHITE);
 

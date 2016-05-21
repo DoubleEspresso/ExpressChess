@@ -353,16 +353,19 @@ public class BoardWindow extends TestWindow
 			toSq = 8*r + c;
 			
 			
-			if (position.isLegal(fromSq, toSq, movingPiece, movingColor))
+			if (position.isLegal(fromSq, toSq, movingPiece, movingColor, true))
 			{
 				// drop piece..handle all special move types
-				position.doMove(fromSq, toSq, movingPiece, movingColor);				
+				position.doMove(fromSq, toSq, movingPiece, movingColor);
+				
+				// check mate/stalemate
+				if (position.isMate(fromSq, toSq, movingPiece, movingColor))
+				{
+					System.out.println("..game over");
+				}
 			}
+			else position.clearMoveData();
 
-			// check mate/stalemate
-			// check draw (material + repetition + move50)
-			
-			position.clearMoveData();
 			
 			fromSq = -1;
 			toSq = -1;	
