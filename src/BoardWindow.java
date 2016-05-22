@@ -2,24 +2,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.MouseEvent;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
-import org.eclipse.swt.widgets.Shell;
 import org.lwjgl.opengl.GL;
 import static org.lwjgl.opengl.GL11.*;
 
 
-public class BoardWindow extends TestWindow
+public class BoardWindow extends GLWindow
 {
-	private List<List<Texture>> wPieceTextures = null; // [piece][texture_id]
-	private List<List<Texture>> bPieceTextures = null; // [piece][texture_id]
+	private static List<List<Texture>> wPieceTextures = null; // [piece][texture_id]
+	private static List<List<Texture>> bPieceTextures = null; // [piece][texture_id]
 	private List<Texture> boardSquares = null;
 	
-
+	private static String texDir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
 	private Boolean hasSquares = false;
 	private Boolean hasPieces = false;
 	private Position position = null;
@@ -31,18 +30,18 @@ public class BoardWindow extends TestWindow
 	private int toSq = -1;
 	private int movingPiece = -1;
 	private int movingColor = -1;
+	private Composite parent = null;
 	
 	public BoardWindow(Composite parent) 
 	{
-		
-		super(parent, SWT.BORDER);
+		super(parent);
+		this.parent = parent;
 		position = new Position();
 		if (!position.Load(Position.StartFen))
 		{
 			System.out.println("ERROR: failed to load starting position!");
 		}
 		position.setStartFen();
-		//System.out.println("input fen " + Position.StartFen + " parsed fen: " + position.toFen());
 		
 		loadBoardTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light");
 		loadPiecesTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132");		
@@ -76,7 +75,7 @@ public class BoardWindow extends TestWindow
 		
 		// white pawns
 		List<Integer> wpSquares = position.getPieceSquares(position.WHITE, Position.Piece.PAWN.P());
-		System.out.println(wpSquares.size());
+		
 		
 		List<Integer> bpSquares = position.getPieceSquares(position.BLACK, Position.Piece.PAWN.P());
 		if (wpSquares.size() > 0) for (int j=0; j<wpSquares.size(); ++j) wPieceTextures.get(0).add(new Texture(directory + "/wp.png"));
@@ -117,6 +116,30 @@ public class BoardWindow extends TestWindow
 		return true;
 	}
 		
+	public static void addTexture(int promotedPiece, int s, int color)
+	{
+		if (color == 0) //white 
+		{
+			switch(promotedPiece)
+			{
+				case 1: wPieceTextures.get(1).add(new Texture(texDir + "/wn.png"));
+				case 2: wPieceTextures.get(2).add(new Texture(texDir + "/wb.png"));
+				case 3: wPieceTextures.get(3).add(new Texture(texDir + "/wr.png"));
+				case 4: wPieceTextures.get(4).add(new Texture(texDir + "/wq.png"));
+			}	
+		}
+		else
+		{
+			switch(promotedPiece)
+			{
+				case 1: bPieceTextures.get(1).add(new Texture(texDir + "/bn.png"));
+				case 2: bPieceTextures.get(2).add(new Texture(texDir + "/bb.png"));
+				case 3: bPieceTextures.get(3).add(new Texture(texDir + "/br.png"));
+				case 4: bPieceTextures.get(4).add(new Texture(texDir + "/bq.png"));
+			}
+		}
+	}
+	
 	public void renderSquares(GL gl, int w, int h)
 	{
 		float dX = (float) w / 8f;
@@ -355,39 +378,24 @@ public class BoardWindow extends TestWindow
 			int r = (int) p.x; int c = (int) p.y;
 			toSq = 8*r + c;
 			
-			
 			if (position.isLegal(fromSq, toSq, movingPiece, movingColor, true))
 			{
-				if (position.isPromotion())
-				{					
-					// popup promotion window
-					final Shell shell = new Shell(Display.getDefault(), SWT.NO_TRIM | SWT.ON_TOP);
-					PromotionSelectionWindow psw = new PromotionSelectionWindow(shell, SWT.BORDER, "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/60");
-					shell.setSize(130, 130);
-					shell.setLocation((int)MousePos.x, (int)MousePos.y+shell.getSize().y/2+18);
-					shell.open();
-					shell.redraw();
-					
-
-					shell.addListener(SWT.MouseDown, new Listener()
-					{
-						@Override 
-						public void handleEvent(Event e)
-						{
-							if (e.button == 1) // left mouse button
-							{
-								shell.dispose();
-							}
-						}
-					});
-					
-					// pass selected piece to doPromotionMove()
-					// rest as usual.
-				}
-				
 				// drop piece..handle all special move types
 				position.doMove(fromSq, toSq, movingPiece, movingColor);
-				
+				// pawn is now sitting at "to" square
+				if (position.isPromotion())
+				{										
+					popupPromotionWindow(fromSq, toSq, movingPiece, movingColor);
+					fromSq = -1;
+					toSq = -1;	
+					movingColor = -1;
+					movingPiece = -1;
+					draggingPiece = false;
+					ActivePiece = null;
+					redraw();
+					return;
+
+				}
 				// check mate/stalemate
 				if (position.isMate(fromSq, toSq, movingPiece, movingColor))
 				{
@@ -403,6 +411,7 @@ public class BoardWindow extends TestWindow
 				{
 					System.out.println("..game over, 3-fold repetition");
 				}
+				
 			}
 			
 			position.clearMoveData();
@@ -417,9 +426,49 @@ public class BoardWindow extends TestWindow
 		redraw();
 	}
 
+	private void popupPromotionWindow(final int fromSq, final int toSq, final int movingPiece, final int c)
+	{
+		String dir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
+			
+		final PromotionWindow shell = new PromotionWindow(Display.getDefault(), dir, c); // composite = new Composite(parent, SWT.NONE);	
+		shell.getPane().setMoveData(position, fromSq, toSq, movingPiece, c);
+		shell.open();
+		shell.layout();
+		
+		parent.setEnabled(false);
+
+		shell.addListener(SWT.Close, new Listener() {
+		      public void handleEvent(Event event) {
+		    	  event.doit = false;
+		    	  if (!shell.getPane().madeSelection())
+		    	  {
+		    		  position.undoMove(toSq, fromSq, movingPiece, c);
+		    	  }
+
+	              parent.setEnabled(true);
+	              shell.dispose();
+	              redraw();
+	            }
+
+		    });
+
+	}
+	
 	@Override
 	public void onMouseDoubleClick(Event e) 
 	{
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onKeyPressed(KeyEvent e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onKeyReleased(KeyEvent e) {
 		// TODO Auto-generated method stub
 		
 	}

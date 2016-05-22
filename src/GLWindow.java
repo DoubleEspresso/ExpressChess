@@ -19,7 +19,7 @@ public abstract class GLWindow extends GLCanvas
     protected Rectangle rec;
     protected int minWidth = 600;
     protected int minHeight = 480;
-    
+    protected Composite parent;
     static 
     {
         gd1 = new GLData();
@@ -29,10 +29,11 @@ public abstract class GLWindow extends GLCanvas
     public GLWindow(Composite parent) 
     {
         super(parent, SWT.BORDER, gd1); 
-        System.out.println("..GLWindow()");
+        this.parent = parent;
+		setBounds(0, 0, parent.getClientArea().width, parent.getClientArea().height);
+		setCurrent();
+
         initGL();
-        setCurrent();
-        
         addResizeListener();
        	addMouseWheelListener();
        	addMouseMoveListener();
@@ -53,14 +54,9 @@ public abstract class GLWindow extends GLCanvas
 		redraw();
 	}
 	
-	public GL getGL()
-	{
-		return getGL();
-	}
-	
 	private void addResizeListener()
 	{
-		addListener(SWT.Resize, new Listener()
+		parent.addListener(SWT.Resize, new Listener()
 		{
 			@Override 
 			public void handleEvent(Event e)
@@ -128,7 +124,7 @@ public abstract class GLWindow extends GLCanvas
 	
 	private void addPaintListener()
 	{
-		addPaintListener(new PaintListener()
+		parent.addPaintListener(new PaintListener()
 		{
 			@Override
 			public void paintControl(PaintEvent paintevent)
@@ -136,12 +132,10 @@ public abstract class GLWindow extends GLCanvas
 				renderGLWindow();
 			}
 		});
-		System.out.println("..addPaintListener()");
 	}
 
 	public void renderGLWindow()
 	{		
-		System.out.println("..renderGLWindow()");
 		Display.getDefault().asyncExec(new Runnable()
 		{			
 			public void run()
@@ -151,7 +145,7 @@ public abstract class GLWindow extends GLCanvas
 					
 					Rectangle r = windowSize();
 					setCurrent();									
-					paint(getGL(), r.width, r.height);					
+					paint(null, r.width, r.height);					
 					swapBuffers();				
 				}
 			}			
@@ -224,15 +218,13 @@ public abstract class GLWindow extends GLCanvas
 		});
 	}
 	
-	
 	public abstract void onMouseScroll(MouseEvent e);
 	public abstract void paint(GL gl, int w, int h);
 	public abstract void onMouseMove(MouseEvent e);
 	public abstract void onMouseDown(Event e);
 	public abstract void onMouseUp(Event e);
-	public abstract void onMouseDoubleClick(Event e);
-	
-	public void onKeyPressed(KeyEvent e) {}
-	public void onKeyReleased(KeyEvent e) {}
+	public abstract void onMouseDoubleClick(Event e);	
+	public abstract void onKeyPressed(KeyEvent e);
+	public abstract void onKeyReleased(KeyEvent e);
 }
 

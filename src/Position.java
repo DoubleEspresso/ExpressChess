@@ -80,7 +80,7 @@ public class Position {
 	public int HalfMvs = 0;
 
 	private Boolean gameFinished = false; // for mate/draw global flag
-	private int capturedPiece = -1;
+	public int capturedPiece = -1;
 	private int promotedPiece = -1;
 	private Boolean moveIsEP = false;
 	private Boolean moveIsCapture = false;
@@ -95,9 +95,9 @@ public class Position {
 		clear();
 	}
 
-	public Boolean isPromotion() { return (moveIsPromotion || moveIsPromotionCapture); }
+	public Boolean isPromotion() { return (moveIsPromotion ); }
 	
-	public Boolean isCapture() { return (moveIsCapture || moveIsPromotionCapture || moveIsEP); }
+	public Boolean isCapture() { return (moveIsCapture  || moveIsEP); }
 	
 	public Position(String fen) {
 		if (!Load(fen)) {
@@ -380,9 +380,9 @@ public class Position {
 		} else if (!isPseudoLegal(from, to, piece, color))
 			return false;
 
-		// check pins/checks etc.
+		// check pins/checks etc., sets captured piece.
 		doMove(from, to, piece, color);
-
+		
 		// store move state -- kingInCheck calls pseudoLegalMv routines, which
 		// update the movestate
 		// which is not wanted, since we need to undo the move...
@@ -693,10 +693,10 @@ public class Position {
 				moveIsPromotion = true;
 				return true;
 			} else if ((from + capRight) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
-				moveIsPromotionCapture = true;
+				moveIsCapture = true; moveIsPromotion = true;
 				return true;
 			} else if ((from + capLeft) == to && enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) {
-				moveIsPromotionCapture = true;
+				moveIsCapture = true; moveIsPromotion = true;
 				return true;
 			}
 		} else {
@@ -1088,6 +1088,64 @@ public class Position {
 		return true;
 	}
 
+	// note the from sq is no longer used -- we checked legality and *did* the pawn
+	// move, and handled captures already, just remove pawn at *to* sq and replace it
+	// with promoted piece at *to* sq.
+	public void doPromotionMove(int from, int to, int promotedPiece, int color)
+	{
+		System.out.println("stm=" + stm + " to = " + to + " promotedPiece = " + promotedPiece + " color = " + color);
+		if (color == WHITE) 
+		{
+			List<Integer> wsquares = getPieceSquares(WHITE, getPiece(to));
+			for (int j = 0; j < wsquares.size(); ++j)
+				if (to == wsquares.get(j)) 
+				{
+					wPieceSquares.get(Piece.PAWN.P()).remove(j); // remove from sq
+					wPieceSquares.get(promotedPiece).add(to); // add to sq
+					BoardWindow.addTexture(promotedPiece, to, WHITE);
+				}
+		} 
+		else 
+		{
+			List<Integer> bsquares = getPieceSquares(BLACK, getPiece(to));
+			for (int j = 0; j < bsquares.size(); ++j)
+				if (to == bsquares.get(j)) 
+				{
+					bPieceSquares.get(Piece.PAWN.P()).remove(j);
+					bPieceSquares.get(promotedPiece).add(to);
+					BoardWindow.addTexture(promotedPiece, to, BLACK);
+				}
+		}
+		
+		pieceOn[from] = Piece.PIECE_NONE.P();
+		pieceOn[to] = promotedPiece;
+
+		colorOn[from] = COLOR_NONE;
+		colorOn[to] = color;
+		
+		//stm = (stm == WHITE ? BLACK : WHITE); // already handled in do_move() previously
+		
+		++displayedMove;
+		FenPositions.add(new ArrayList<String>());		
+		FenPositions.get(displayedMove).add(toFen());
+		
+		// check mate/stalemate
+		if (isMate(from, to, promotedPiece, color))
+		{
+			System.out.println("..game over, mate");					
+		}
+	
+		else if (isStaleMate())
+		{
+			System.out.println("..game over, stalemate");
+		}
+	
+		else if (isRepetitionDraw())
+		{
+			System.out.println("..game over, 3-fold repetition");
+		}
+	}
+	
 	public Boolean undoMove(int from, int to, int piece, int color) {
 
 		if (color == WHITE) {

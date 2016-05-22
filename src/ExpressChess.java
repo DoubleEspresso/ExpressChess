@@ -7,6 +7,11 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
+import org.eclipse.swt.widgets.Canvas;
+import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Group;
+import org.eclipse.swt.widgets.List;
 
 public class ExpressChess extends Shell 
 {
@@ -57,12 +62,42 @@ public class ExpressChess extends Shell
 		MenuItem mntmNewItem_3 = new MenuItem(menu, SWT.NONE);
 		mntmNewItem_3.setText("Database");
 		
+		//Canvas canvas = new Canvas(this, SWT.NONE);
+		//canvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
+		//BoardWindow canvas = new BoardWindow(this);
+		//GridData gridData = new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1);
+		//canvas.setLayoutData(gridData);
+		
+		Composite composite = new Composite(this, SWT.NONE);
+		composite.setLayout(new GridLayout(1, false));
+		GridData gd_composite = new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1);
+		gd_composite.widthHint = 539;
+		composite.setLayoutData(gd_composite);
+		
+//		Canvas canvas = new Canvas(composite, SWT.NONE);
+//		canvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
 
+		BoardWindow canvas = new BoardWindow(composite);
+		canvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
+		canvas.refresh();
+		
+		Composite composite_1 = new Composite(this, SWT.NONE);
+		composite_1.setLayout(new GridLayout(1, false));
+		composite_1.setLayoutData(new GridData(SWT.FILL, SWT.FILL, false, true, 1, 1));
+		
+		List list = new List(composite_1, SWT.BORDER);
+		GridData gd_list = new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1);
+		gd_list.widthHint = 126;
+		list.setLayoutData(gd_list);
+		
+
+		
 		/*the chess board*/
-		final BoardWindow canvas = new BoardWindow(getShell());
-		GridData gridData = new GridData(GridData.FILL, GridData.FILL, true, true);
-		gridData.verticalSpan = 2;
-		canvas.setLayoutData(gridData);
+		//final BoardWindow canvas = new BoardWindow(getShell());
+		//GridData gridData = new GridData(GridData.FILL, GridData.FILL, true, true);
+		//gridData.verticalSpan = 2;
+		//canvas.setLayoutData(gridData);
+		
 		createContents();
 
 		getShell().addListener(SWT.Traverse, new Listener() 
