@@ -95,6 +95,10 @@ public class Position {
 		clear();
 	}
 
+	public Boolean isPromotion() { return (moveIsPromotion || moveIsPromotionCapture); }
+	
+	public Boolean isCapture() { return (moveIsCapture || moveIsPromotionCapture || moveIsEP); }
+	
 	public Position(String fen) {
 		if (!Load(fen)) {
 			System.out.println("..Warning failed to load position " + fen);
@@ -430,7 +434,7 @@ public class Position {
 				EP_SQ = to + 8;
 			}	
 		}
-		if (update)
+		if (update && !(moveIsPromotion || moveIsPromotionCapture)) // handle promotion moves separately
 		{
 			// save fen state
 			++displayedMove;
@@ -476,6 +480,7 @@ public class Position {
 		moveIsCastle = false;
 	}
 
+	
 	public Boolean isPseudoLegal(int from, int to, int piece, int color) {
 		if (pieceColorAt(to) == color)
 			return false;
@@ -761,7 +766,7 @@ public class Position {
 			int d = deltas[j];
 			int c = 1;
 			int t = from + d * c;
-			while (onBoard(t) && (onRow(from, t) || onCol(from, to)) && (isEmpty(t) || enemyOn(t, enemy))) {
+			while (onBoard(t) && (onRow(from, t) || onCol(from, t)) && (isEmpty(t) || enemyOn(t, enemy))) {
 				if (!isEmpty(t) && t != to)
 					break;
 				else if (t == to && isEmpty(t))
@@ -806,6 +811,154 @@ public class Position {
 		return false;
 	}
 
+	private List<Integer> getPawnMoves(int from, int color)
+	{
+		List<Integer> to_sqs = new ArrayList<Integer>();
+		int enemy = (color == WHITE ? BLACK : WHITE);
+		int forward1 = (color == WHITE ? 8 : -8);
+		int forward2 = (color == WHITE ? 16 : -16);
+		int capRight = (color == WHITE ? 7 : -7);
+		int capLeft = (color == WHITE ? 9 : -9);
+		int to = -1;
+		
+		Boolean on4 = (color == WHITE ? (rowOf(from) == 4) : (rowOf(from) == 3));
+		//Boolean on7 = (color == WHITE ? (rowOf(from) == 6) : (rowOf(from) == 1));
+		Boolean on2 = (color == WHITE ? (rowOf(from) == 1) : (rowOf(from) == 6));
+		
+		if (on2) {
+			to=(from + forward1);
+			if (  isEmpty(to)) to_sqs.add(to);
+			
+			to = (from + forward2);
+			if (to_sqs.size() > 0 && isEmpty(to)) to_sqs.add(to);
+
+			to = (from + capRight);
+			if (enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) to_sqs.add(to);
+				
+			
+			to = (from + capLeft);
+			if (enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) to_sqs.add(to);
+			
+		} else if (on4 && EP_SQ == to) // EP move?
+		{
+			int epTo = (color == WHITE ? to-8 : to+8);
+			to = (from + capRight);
+			if (enemyOn(epTo, enemy) && colDiff(from, to) == 1 && onBoard(to)) to_sqs.add(to); 
+			
+			to = (from + capLeft);
+			if (enemyOn(epTo, enemy) && colDiff(from, to) == 1 && onBoard(to)) to_sqs.add(to); 
+		}		
+		else { // same condition for normal pawn moves or promotion moves - this method is meant to check if a pawn move exists, it doesn't 
+			// return the exact number of pawn moves.
+			to = (from + forward1);
+			if (isEmpty(to)) to_sqs.add(to);
+			
+			to = (from + capRight);
+			if (enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) to_sqs.add(to);
+			
+			to = (from + capLeft);
+			if (enemyOn(to, enemy) && colDiff(from, to) == 1 && onBoard(to)) to_sqs.add(to);
+
+			}
+		
+		return to_sqs;
+		
+	}
+	
+	private List<Integer> getKnightMoves(int from, int color)
+	{
+		List<Integer> to_sqs = new ArrayList<Integer>();
+		int[] deltas = { 16 - 1, 16 + 1, 2 + 8, 2 - 8, -16 + 1, -16 - 1, -2 - 8, -2 + 8 };
+		int enemy = (color == WHITE ? BLACK : WHITE);
+
+		for (int j = 0; j < deltas.length; ++j) {
+			int t = deltas[j] + from;
+
+			if (!onBoard(t) || (!isEmpty(t) && !enemyOn(t, enemy))) continue;
+			else if (onBoard(t) && isEmpty(t) && !enemyOn(t, enemy)) to_sqs.add(t);
+			else if (onBoard(t) && !isEmpty(t) && enemyOn(t, enemy)) to_sqs.add(t);
+		}
+		return to_sqs;
+	}
+	
+	private List<Integer> getBishopMoves(int from, int color)
+	{
+		List<Integer> to_sqs = new ArrayList<Integer>();
+		int[] deltas = { 7, 9, -7, -9 };
+		int enemy = (color == WHITE ? BLACK : WHITE);
+		for (int j = 0; j < deltas.length; ++j) {
+			int d = deltas[j];
+			int c = 1;
+			int t = from + d * c;
+			while (onBoard(t) && onDiag(from, t) && (isEmpty(t) || enemyOn(t, enemy))) {
+				if (!isEmpty(t) && !enemyOn(t, enemy))
+					break;
+				else if (isEmpty(t)) {
+					to_sqs.add(t);
+				} else if (enemyOn(t, enemy) ) {
+					to_sqs.add(t);
+					break;
+				}
+				t = from + d * (++c);
+			}
+		}
+		return to_sqs;
+	}
+	
+	private List<Integer> getRookMoves(int from, int color)
+	{
+		List<Integer> to_sqs = new ArrayList<Integer>();
+		int[] deltas = { 1, -1, 8, -8 };
+		int enemy = (color == WHITE ? BLACK : WHITE);
+		for (int j = 0; j < deltas.length; ++j) {
+			int d = deltas[j];
+			int c = 1;
+			int t = from + d * c;
+			while (onBoard(t) && (onRow(from, t) || onCol(from, t)) && (isEmpty(t) || enemyOn(t, enemy))) {
+				if (!isEmpty(t) && !enemyOn(t, enemy))
+					break;
+				else if (isEmpty(t)) {
+					to_sqs.add(t);
+				} else if (enemyOn(t, enemy) ) {
+					to_sqs.add(t);
+					break;
+				}
+				t = from + d * (++c);
+			}
+		}
+		return to_sqs;
+	}
+
+	private List<Integer> getQueenMoves(int from, int color)
+	{
+		List<Integer> to_sqs_b = new ArrayList<Integer>();
+		List<Integer> to_sqs_r = new ArrayList<Integer>();
+		List<Integer> to_sqs_q = new ArrayList<Integer>();
+		to_sqs_b = getBishopMoves(from, color);
+		to_sqs_r = getRookMoves(from, color);
+		
+		for (int j=0; j<to_sqs_b.size(); ++j) to_sqs_q.add(to_sqs_b.get(j));
+		for (int j=0; j<to_sqs_r.size(); ++j) to_sqs_q.add(to_sqs_r.get(j));
+		
+		return to_sqs_q;
+	}
+	
+	private List<Integer> getKingMoves(int from, int color)
+	{
+		List<Integer> to_sqs = new ArrayList<Integer>();
+		int[] deltas = { 1, -1, 7, 9, 8, -8, -7, -9 };
+		int enemy = (color == WHITE ? BLACK : WHITE);
+
+		for (int j = 0; j < deltas.length; ++j) {
+			int t = deltas[j] + from;
+
+			if (!onBoard(t) || (!isEmpty(t) && !enemyOn(t, enemy))) continue;
+			else if (onBoard(t) && isEmpty(t) && !enemyOn(t, enemy)) to_sqs.add(t);
+			else if (onBoard(t) && !isEmpty(t) && enemyOn(t, enemy)) to_sqs.add(t);
+		}
+		return to_sqs;
+	}
+	
 	public Boolean doMove(int from, int to, int piece, int color) 
 	{
 		if (color == WHITE) 
@@ -1216,6 +1369,108 @@ public class Position {
 		return !canBlock && !canBlockd;
 	}
 	
+	public Boolean isStaleMate()
+	{
+		
+		// king moves
+		List<Integer> ksquares = getPieceSquares(stm, Piece.KING.P());
+		for (int j = 0; j < ksquares.size(); ++j) {
+			int from = ksquares.get(j);
+			List<Integer> to_sqs = getKingMoves(from, stm); // no move data was updated
+			for (int k = 0; k < to_sqs.size(); ++k)
+			{
+				int to = to_sqs.get(k);
+				if (isLegal(from, to, Piece.KING.P(), stm, false))
+					{
+						clearMoveData();
+						return false;
+					}
+			}
+		}
+		
+		// pawn moves 
+		List<Integer> psquares = getPieceSquares(stm, Piece.PAWN.P());
+		for (int j = 0; j < psquares.size(); ++j) {
+			int from = psquares.get(j);
+			List<Integer> to_sqs = getPawnMoves(from, stm); // no move data was updated
+			for (int k = 0; k < to_sqs.size(); ++k)
+			{
+				int to = to_sqs.get(k);
+				if (isLegal(from, to, Piece.PAWN.P(), stm, false))
+					{
+						clearMoveData();
+						return false;
+					}
+			}
+		}
+		
+		// knight moves 
+		List<Integer> nsquares = getPieceSquares(stm, Piece.KNIGHT.P());
+		for (int j = 0; j < nsquares.size(); ++j) {
+			int from = nsquares.get(j);
+			List<Integer> to_sqs = getKnightMoves(from, stm); // no move data was updated
+			for (int k = 0; k < to_sqs.size(); ++k)
+			{
+				int to = to_sqs.get(k);
+				if (isLegal(from, to, Piece.KNIGHT.P(), stm, false))
+					{
+						clearMoveData();
+						return false;
+					}
+			}
+		}
+		
+		// bishop moves 
+		List<Integer> bsquares = getPieceSquares(stm, Piece.BISHOP.P());
+		for (int j = 0; j < bsquares.size(); ++j) {
+			int from = bsquares.get(j);
+			List<Integer> to_sqs = getBishopMoves(from, stm); // no move data was updated
+			for (int k = 0; k < to_sqs.size(); ++k)
+			{
+				int to = to_sqs.get(k);
+				if (isLegal(from, to, Piece.BISHOP.P(), stm, false))
+					{
+						clearMoveData();
+						return false;
+					}
+			}
+		}
+		
+		// rook moves
+		List<Integer> rsquares = getPieceSquares(stm, Piece.ROOK.P());
+		for (int j = 0; j < rsquares.size(); ++j) {
+			int from = rsquares.get(j);
+			List<Integer> to_sqs = getRookMoves(from, stm); // no move data was updated
+			for (int k = 0; k < to_sqs.size(); ++k)
+			{
+				int to = to_sqs.get(k);
+				if (isLegal(from, to, Piece.ROOK.P(), stm, false))
+					{
+						clearMoveData();
+						return false;
+					}
+			}
+		}
+		
+		// queen moves
+		List<Integer> qsquares = getPieceSquares(stm, Piece.QUEEN.P());
+		for (int j = 0; j < qsquares.size(); ++j) {
+			int from = qsquares.get(j);
+			List<Integer> to_sqs = getQueenMoves(from, stm); // no move data was updated
+			for (int k = 0; k < to_sqs.size(); ++k)
+			{
+				int to = to_sqs.get(k);
+				if (isLegal(from, to, Piece.QUEEN.P(), stm, false))
+					{
+						clearMoveData();
+						return false;
+					}
+			}
+		}
+		
+		return true;
+	}
+	
 	int findDiscoveredChecks(int to, int stm)
 	{
 		int enemy = (stm == WHITE ? BLACK : WHITE);
@@ -1248,6 +1503,19 @@ public class Position {
 		return -1;
 	}
 	
+	public Boolean isRepetitionDraw()
+	{
+		if (FenPositions.size() < 6) return false;
+		String fen = FenPositions.get(FenPositions.size()-1).get(0).split(" ")[0];
+		int count = 0;
+		for (int j=FenPositions.size()-2; j>=0; --j)
+		{
+			if (fen.equals(FenPositions.get(j).get(0).split(" ")[0])) ++count;
+			if (count > 2) return true;
+		}
+		return false;
+	}
+
 	public Boolean canCapture(int to, Boolean checkOccupied)
 	{
 		if (checkOccupied)
@@ -1255,12 +1523,13 @@ public class Position {
 			if (isEmpty(to)) return false;
 		}
 		
-		// pawn attacks .. nb: does not handle ep capture properly!!
+		// pawn attacks 
 		List<Integer> psquares = getPieceSquares(stm, Piece.PAWN.P());
 		for (int j = 0; j < psquares.size(); ++j) {
 			int from = psquares.get(j);
 			if (isLegal(from, to, Piece.PAWN.P(), stm, false)) return true;
 			clearMoveData();
+			if (EP_SQ != 0 && isLegal(from, EP_SQ, Piece.PAWN.P(), stm, false)) return true;
 		}
 
 		// knight attacks

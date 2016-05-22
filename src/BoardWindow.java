@@ -5,7 +5,10 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
+import org.eclipse.swt.widgets.Shell;
 import org.lwjgl.opengl.GL;
 import static org.lwjgl.opengl.GL11.*;
 
@@ -355,17 +358,54 @@ public class BoardWindow extends TestWindow
 			
 			if (position.isLegal(fromSq, toSq, movingPiece, movingColor, true))
 			{
+				if (position.isPromotion())
+				{					
+					// popup promotion window
+					final Shell shell = new Shell(Display.getDefault(), SWT.NO_TRIM | SWT.ON_TOP);
+					PromotionSelectionWindow psw = new PromotionSelectionWindow(shell, SWT.BORDER, "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/60");
+					shell.setSize(130, 130);
+					shell.setLocation((int)MousePos.x, (int)MousePos.y+shell.getSize().y/2+18);
+					shell.open();
+					shell.redraw();
+					
+
+					shell.addListener(SWT.MouseDown, new Listener()
+					{
+						@Override 
+						public void handleEvent(Event e)
+						{
+							if (e.button == 1) // left mouse button
+							{
+								shell.dispose();
+							}
+						}
+					});
+					
+					// pass selected piece to doPromotionMove()
+					// rest as usual.
+				}
+				
 				// drop piece..handle all special move types
 				position.doMove(fromSq, toSq, movingPiece, movingColor);
 				
 				// check mate/stalemate
 				if (position.isMate(fromSq, toSq, movingPiece, movingColor))
 				{
-					System.out.println("..game over");
+					System.out.println("..game over, mate");					
+				}
+				
+				else if (position.isStaleMate())
+				{
+					System.out.println("..game over, stalemate");
+				}
+				
+				else if (position.isRepetitionDraw())
+				{
+					System.out.println("..game over, 3-fold repetition");
 				}
 			}
-			else position.clearMoveData();
-
+			
+			position.clearMoveData();
 			
 			fromSq = -1;
 			toSq = -1;	
