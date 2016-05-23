@@ -11,12 +11,16 @@ public class EngineUCI
 	private BufferedReader reader = null;
 	private BufferedWriter writer = null; 
 	Thread listeningThread = null;
-	public EngineUCI(String exe, String[] options)
+	private BoardWindow bw = null;
+	Scanner scanner = null;
+	public EngineUCI(String exe, String[] options, BoardWindow bw)
 	{
 		try {
+			this.bw = bw;
 			p = Runtime.getRuntime().exec(exe, options);
 			reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
 			writer = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));
+			scanner = new Scanner(p.getInputStream());
 			//startListening();
 			
 		} catch (IOException e) 
@@ -25,14 +29,14 @@ public class EngineUCI
 			e.printStackTrace();
 		}
 	}
-	private void startListening()
+	private void startListening(final String s)
 	{
 		listeningThread = new Thread( new Runnable()
 				{
 
 					@Override
 					public void run() {
-						listen();			
+						listen(s);			
 					}				
 				});
 		listeningThread.start();
@@ -56,51 +60,39 @@ public class EngineUCI
 	public String UCI_CMD(String cmd)
 	{
 		String response = "";
-		Scanner scanner = new Scanner(p.getInputStream());
+		//Scanner scanner = new Scanner(p.getInputStream());
+		System.out.println("sending cmd " + cmd);
 		try {
-			
-			for (int j=0; j<10; ++j)
-			{
-				System.out.println("sending cmd " + cmd);
-				writer.write(cmd + "\n");
-				writer.flush();
-				//if ((response = reader.readLine()) != null)
-				if (scanner.hasNextLine())
-				{
-					//System.out.println("..got response " + scanner.nextLine());
-					return scanner.nextLine();
-				}
-				try {
-					Thread.sleep(50);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-			
+			writer.write(cmd + "\n");
+			writer.flush();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		System.out.println("..no response after .5sec");
+		//scanner.close();
 		return response;
 	}
 	
-	public void listen()
+	public void listen(final String token)
 	{
 		String line;
-		try {
-			while ((line = reader.readLine()) != null) {
-			  System.out.println(line);
-			  Thread.sleep(30);
-			}
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		//Scanner scanner = new Scanner(p.getInputStream());
+		System.out.println("..starting listen thread.");
+		
+		while (scanner.hasNextLine()) {
+		  line = scanner.nextLine();
+		  System.out.println(line);
+		  if (line.contains(token)) 
+			  { 
+			  	if (token == "bestmove") 
+			  	{
+			  		bw.moveFromEngine(line);
+			  		break;
+			  	}
+			  }
+		  //Thread.sleep(30);
 		}
+		//scanner.close();
 	}
 	
 	public void close()

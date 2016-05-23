@@ -57,17 +57,17 @@ public class BoardWindow extends GLWindow
 		loadPiecesTexture(texDir);
 		
 		// try UCI engine
-//		engine = new EngineUCI(EngineDir, null);
-//		
-//		if (engine.isReady())
-//		{
-//			System.out.println("..engine ready");
-//		}
-//		else
-//		{
-//			System.out.println("..engine ready failed, closing");
-//			engine.close();
-//		}
+		engine = new EngineUCI(EngineDir, null, this);
+		
+		if (engine.isReady())
+		{
+			System.out.println("..engine ready");
+		}
+		else
+		{
+			System.out.println("..engine ready failed, closing");
+			engine.close();
+		}
 	}
 
 	public EngineUCI engineHandle()
@@ -443,6 +443,20 @@ public class BoardWindow extends GLWindow
 					System.out.println("..game over, 3-fold repetition");
 				}
 				
+				
+				// send move data to engine
+				String fen = position.getPosition(position.maxDisplayedMoveIdx(), 0);
+				engine.UCI_CMD("position fen " + fen);
+				try {
+					Thread.sleep(300);
+				} catch (InterruptedException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
+				engine.UCI_CMD("go wtime 8000 btime 8000");
+				// start listening for response
+				engine.listen("bestmove");
+				// send response to gui.
 			}
 			
 			position.clearMoveData();
@@ -457,6 +471,85 @@ public class BoardWindow extends GLWindow
 		redraw();
 	}
 
+	public void moveFromEngine(String line)
+	{
+		String move = line.split(" ")[1];		
+		Vec2 fromto = Position.getFromTo(move);
+		
+		int from = (int) fromto.x; int to = (int) fromto.y;
+		System.out.println("from = " + from + " to = " + to);
+		if (position.hasPiece(from))
+		{
+			fromSq = from; toSq = to;
+			if (position.pieceColorAt(from) == position.WHITE )
+			{
+				movingColor = position.WHITE;
+				//draggingPiece = true;
+				List<Integer> wsquares = position.getPieceSquares(position.WHITE, position.getPiece(from));
+				for (int j=0; j<wsquares.size(); ++j) if( from == wsquares.get(j)) { ActivePiece = wPieceTextures.get(position.getPiece(from)).get(j); movingPiece = position.getPiece(from); }
+				
+			}
+			else if (position.pieceColorAt(from) == position.BLACK )
+			{
+				movingColor = position.BLACK;
+				draggingPiece = true;
+				List<Integer> wbsquares = position.getPieceSquares(position.BLACK, position.getPiece(from));
+				for (int j=0; j<wbsquares.size(); ++j) if( from == wbsquares.get(j)) { ActivePiece = bPieceTextures.get(position.getPiece(from)).get(j); movingPiece = position.getPiece(from); }
+				//ActivePiece = whitePieces.get(position.getPiece(s));
+			}
+				
+		}
+		else ActivePiece = null;
+		
+		
+		if (position.isLegal( fromSq, toSq, movingPiece, movingColor, true))
+		{
+			// drop piece..handle all special move types
+			position.doMove(fromSq, toSq, movingPiece, movingColor);
+			// pawn is now sitting at "to" square
+			if (position.isPromotion())
+			{										
+				popupPromotionWindow(fromSq, toSq, movingPiece, movingColor);
+				fromSq = -1;
+				toSq = -1;	
+				movingColor = -1;
+				movingPiece = -1;
+				draggingPiece = false;
+				ActivePiece = null;
+				redraw();
+				return;
+
+			}
+			// check mate/stalemate
+			if (position.isMate(fromSq, toSq, movingPiece, movingColor))
+			{
+				System.out.println("..game over, mate");					
+			}
+			
+			else if (position.isStaleMate())
+			{
+				System.out.println("..game over, stalemate");
+			}
+			
+			else if (position.isRepetitionDraw())
+			{
+				System.out.println("..game over, 3-fold repetition");
+			}
+
+		}
+		
+		position.clearMoveData();
+		
+		fromSq = -1;
+		toSq = -1;	
+		movingColor = -1;
+		movingPiece = -1;
+	
+		draggingPiece = false;
+		ActivePiece = null;
+		redraw();	
+	}
+	
 	private void popupPromotionWindow(final int fromSq, final int toSq, final int movingPiece, final int c)
 	{
 		//String dir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
