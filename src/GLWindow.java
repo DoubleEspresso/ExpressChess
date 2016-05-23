@@ -11,6 +11,8 @@ import org.eclipse.swt.opengl.GLCanvas;
 import org.eclipse.swt.opengl.GLData;
 import org.eclipse.swt.widgets.*;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GLCapabilities;
+
 import static org.lwjgl.opengl.GL11.*;
 
 public abstract class GLWindow extends GLCanvas 
@@ -28,7 +30,7 @@ public abstract class GLWindow extends GLCanvas
 
     public GLWindow(Composite parent) 
     {
-        super(parent, SWT.BORDER, gd1); 
+        super(parent, SWT.NO_BACKGROUND, gd1); 
         this.parent = parent;
 		setBounds(0, 0, parent.getClientArea().width, parent.getClientArea().height);
 		setCurrent();
@@ -46,8 +48,7 @@ public abstract class GLWindow extends GLCanvas
     
     public void initGL()
     {
-    	GL.createCapabilities();
-    	
+    	GL.setCapabilities(GL.createCapabilities());    	
     }
 	public void refresh()
 	{
@@ -124,7 +125,7 @@ public abstract class GLWindow extends GLCanvas
 	
 	private void addPaintListener()
 	{
-		parent.addPaintListener(new PaintListener()
+		addPaintListener(new PaintListener()
 		{
 			@Override
 			public void paintControl(PaintEvent paintevent)

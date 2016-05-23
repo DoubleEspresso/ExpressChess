@@ -18,7 +18,16 @@ public class BoardWindow extends GLWindow
 	private static List<List<Texture>> bPieceTextures = null; // [piece][texture_id]
 	private List<Texture> boardSquares = null;
 	
-	private static String texDir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
+	// linux definition
+	//private static String texDir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
+	//private static String btexDir  = "/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light";
+	//private static String EngineDir = "/home/mjg/java-workspace-mars/ExpressChess/engines/UCI/hedwig-64.exe";
+	
+	// win defs
+	private static String texDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\pieces\\132";
+	private static String btexDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\boards\\wooden-light";
+	private static String EngineDir = "A:\\software\\java-workspace\\ExpressChess\\engine\\UCI\\hedwig-64.exe";
+	
 	private Boolean hasSquares = false;
 	private Boolean hasPieces = false;
 	private Position position = null;
@@ -43,22 +52,22 @@ public class BoardWindow extends GLWindow
 			System.out.println("ERROR: failed to load starting position!");
 		}
 		position.setStartFen();
-		
-		loadBoardTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light");
-		loadPiecesTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132");
+
+		loadBoardTexture(btexDir);
+		loadPiecesTexture(texDir);
 		
 		// try UCI engine
-		engine = new EngineUCI("/home/mjg/java-workspace-mars/ExpressChess/engines/UCI/hedwig-64.exe", null);
-		
-		if (engine.isReady())
-		{
-			System.out.println("..engine ready");
-		}
-		else
-		{
-			System.out.println("..engine ready failed, closing");
-			engine.close();
-		}
+//		engine = new EngineUCI(EngineDir, null);
+//		
+//		if (engine.isReady())
+//		{
+//			System.out.println("..engine ready");
+//		}
+//		else
+//		{
+//			System.out.println("..engine ready failed, closing");
+//			engine.close();
+//		}
 	}
 
 	public EngineUCI engineHandle()
@@ -72,8 +81,9 @@ public class BoardWindow extends GLWindow
 		else boardSquares.clear();	
 		
 		// squares
-		boardSquares.add(new Texture(directory + "/light.gif"));
-		boardSquares.add(new Texture(directory + "/dark.gif"));
+		String sep = StringUtils.dirSeparator();
+		boardSquares.add(new Texture(directory + sep + "light.gif"));
+		boardSquares.add(new Texture(directory + sep + "dark.gif"));
 		
 		hasSquares = true;
 		
@@ -94,41 +104,41 @@ public class BoardWindow extends GLWindow
 		
 		// white pawns
 		List<Integer> wpSquares = position.getPieceSquares(position.WHITE, Position.Piece.PAWN.P());
-		
+		String sep = StringUtils.dirSeparator();
 		
 		List<Integer> bpSquares = position.getPieceSquares(position.BLACK, Position.Piece.PAWN.P());
-		if (wpSquares.size() > 0) for (int j=0; j<wpSquares.size(); ++j) wPieceTextures.get(0).add(new Texture(directory + "/wp.png"));
-		if (bpSquares.size() > 0) for (int j=0; j<bpSquares.size(); ++j) bPieceTextures.get(0).add(new Texture(directory + "/bp.png"));
+		if (wpSquares.size() > 0) for (int j=0; j<wpSquares.size(); ++j) wPieceTextures.get(0).add(new Texture(directory + sep + "wp.png"));
+		if (bpSquares.size() > 0) for (int j=0; j<bpSquares.size(); ++j) bPieceTextures.get(0).add(new Texture(directory + sep + "bp.png"));
 	
 		// white knights
 		List<Integer> wnSquares = position.getPieceSquares(position.WHITE, Position.Piece.KNIGHT.P());
 		List<Integer> bnSquares = position.getPieceSquares(position.BLACK, Position.Piece.KNIGHT.P());
-		if (wnSquares.size() > 0) for (int j=0; j<wnSquares.size(); ++j) wPieceTextures.get(1).add(new Texture(directory + "/wn.png"));
-		if (bnSquares.size() > 0) for (int j=0; j<bnSquares.size(); ++j) bPieceTextures.get(1).add(new Texture(directory + "/bn.png"));
+		if (wnSquares.size() > 0) for (int j=0; j<wnSquares.size(); ++j) wPieceTextures.get(1).add(new Texture(directory + sep + "wn.png"));
+		if (bnSquares.size() > 0) for (int j=0; j<bnSquares.size(); ++j) bPieceTextures.get(1).add(new Texture(directory + sep + "bn.png"));
 				
 		// white bishops
 		List<Integer> wbSquares = position.getPieceSquares(position.WHITE, Position.Piece.BISHOP.P());
 		List<Integer> bbSquares = position.getPieceSquares(position.BLACK, Position.Piece.BISHOP.P());
-		if (wbSquares.size() > 0) for (int j=0; j<wbSquares.size(); ++j) wPieceTextures.get(2).add(new Texture(directory + "/wb.png"));
-		if (bbSquares.size() > 0) for (int j=0; j<bbSquares.size(); ++j) bPieceTextures.get(2).add(new Texture(directory + "/bb.png"));
+		if (wbSquares.size() > 0) for (int j=0; j<wbSquares.size(); ++j) wPieceTextures.get(2).add(new Texture(directory + sep + "wb.png"));
+		if (bbSquares.size() > 0) for (int j=0; j<bbSquares.size(); ++j) bPieceTextures.get(2).add(new Texture(directory + sep + "bb.png"));
 		
 		// white rooks
 		List<Integer> wrSquares = position.getPieceSquares(position.WHITE, Position.Piece.ROOK.P());
 		List<Integer> brSquares = position.getPieceSquares(position.BLACK, Position.Piece.ROOK.P());
-		if (wrSquares.size() > 0) for (int j=0; j<wrSquares.size(); ++j) wPieceTextures.get(3).add(new Texture(directory + "/wr.png"));
-		if (brSquares.size() > 0) for (int j=0; j<brSquares.size(); ++j) bPieceTextures.get(3).add(new Texture(directory + "/br.png"));
+		if (wrSquares.size() > 0) for (int j=0; j<wrSquares.size(); ++j) wPieceTextures.get(3).add(new Texture(directory + sep + "wr.png"));
+		if (brSquares.size() > 0) for (int j=0; j<brSquares.size(); ++j) bPieceTextures.get(3).add(new Texture(directory + sep + "br.png"));
 		
 		// white queens
 		List<Integer> wqSquares = position.getPieceSquares(position.WHITE, Position.Piece.QUEEN.P());
 		List<Integer> bqSquares = position.getPieceSquares(position.BLACK, Position.Piece.QUEEN.P());
-		if (wqSquares.size() > 0) for (int j=0; j<wqSquares.size(); ++j) wPieceTextures.get(4).add(new Texture(directory + "/wq.png"));
-		if (bqSquares.size() > 0) for (int j=0; j<bqSquares.size(); ++j) bPieceTextures.get(4).add(new Texture(directory + "/bq.png"));
+		if (wqSquares.size() > 0) for (int j=0; j<wqSquares.size(); ++j) wPieceTextures.get(4).add(new Texture(directory + sep + "wq.png"));
+		if (bqSquares.size() > 0) for (int j=0; j<bqSquares.size(); ++j) bPieceTextures.get(4).add(new Texture(directory + sep + "bq.png"));
 		
 		// white kings
 		List<Integer> wkSquares = position.getPieceSquares(position.WHITE, Position.Piece.KING.P());
 		List<Integer> bkSquares = position.getPieceSquares(position.BLACK, Position.Piece.KING.P());
-		if (wkSquares.size() > 0) for (int j=0; j<wkSquares.size(); ++j) wPieceTextures.get(5).add(new Texture(directory + "/wk.png"));
-		if (bkSquares.size() > 0) for (int j=0; j<bkSquares.size(); ++j) bPieceTextures.get(5).add(new Texture(directory + "/bk.png"));
+		if (wkSquares.size() > 0) for (int j=0; j<wkSquares.size(); ++j) wPieceTextures.get(5).add(new Texture(directory + sep + "wk.png"));
+		if (bkSquares.size() > 0) for (int j=0; j<bkSquares.size(); ++j) bPieceTextures.get(5).add(new Texture(directory + sep + "bk.png"));
 		
 		hasPieces = true;
 		
@@ -137,26 +147,27 @@ public class BoardWindow extends GLWindow
 		
 	public static void addTexture(int promotedPiece, int s, int color)
 	{
+		String sep = StringUtils.dirSeparator();
 		if (color == 0) //white 
 		{
 			switch(promotedPiece)
 			{
-				case 1: wPieceTextures.get(1).add(new Texture(texDir + "/wn.png"));
-				case 2: wPieceTextures.get(2).add(new Texture(texDir + "/wb.png"));
-				case 3: wPieceTextures.get(3).add(new Texture(texDir + "/wr.png"));
-				case 4: wPieceTextures.get(4).add(new Texture(texDir + "/wq.png"));
+				case 1: wPieceTextures.get(1).add(new Texture(texDir + sep + "wn.png"));
+				case 2: wPieceTextures.get(2).add(new Texture(texDir + sep + "wb.png"));
+				case 3: wPieceTextures.get(3).add(new Texture(texDir + sep + "wr.png"));
+				case 4: wPieceTextures.get(4).add(new Texture(texDir + sep + "wq.png"));
 			}	
 		}
 		else
 		{
 			switch(promotedPiece)
 			{
-				case 1: bPieceTextures.get(1).add(new Texture(texDir + "/bn.png"));
-				case 2: bPieceTextures.get(2).add(new Texture(texDir + "/bb.png"));
-				case 3: bPieceTextures.get(3).add(new Texture(texDir + "/br.png"));
-				case 4: bPieceTextures.get(4).add(new Texture(texDir + "/bq.png"));
+				case 1: bPieceTextures.get(1).add(new Texture(texDir + sep + "bn.png"));
+				case 2: bPieceTextures.get(2).add(new Texture(texDir + sep + "bb.png"));
+				case 3: bPieceTextures.get(3).add(new Texture(texDir + sep + "br.png"));
+				case 4: bPieceTextures.get(4).add(new Texture(texDir + sep + "bq.png"));
 			}
-		}
+		} 
 	}
 	
 	public void renderSquares(GL gl, int w, int h)
@@ -168,6 +179,7 @@ public class BoardWindow extends GLWindow
 		Texture t;		
 		
 		glEnable(GL_TEXTURE_2D);
+		
 		// loop backward -- java composite has 0,0 defined in upper left corner
 		// and y increases going downward 
 		for (int r = 0; r < 8; ++r)
@@ -188,7 +200,7 @@ public class BoardWindow extends GLWindow
 	        	glTexCoord2f(1, 0); glVertex2d(oX + (c+1)*dX, oY + r*dY);
 	        	glTexCoord2f(1, 1); glVertex2d(oX + (c+1)*dX, oY + (r+1)*dY);
 	        	glTexCoord2f(0, 1); glVertex2d(oX + c*dX, oY + (r+1)*dY);
-	        	glEnd();	        		        	
+	        	glEnd();	        	
 			}		
 		}		
 		// render pieces after all squares are rendered .. else dragging pieces sometimes renders squares over the dragging piece
@@ -307,9 +319,10 @@ public class BoardWindow extends GLWindow
 
         glMatrixMode(GL_MODELVIEW);
         glViewport( 0, 0, w, h);
+        
+        //glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		glClearColor(1f, 1f, 1f, 1f);
 		
-		glClearColor(0f, 0f, 0f, 0f);
-		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		glLoadIdentity();
 		
 		fixAspectRatio(w,h);		
@@ -446,9 +459,9 @@ public class BoardWindow extends GLWindow
 
 	private void popupPromotionWindow(final int fromSq, final int toSq, final int movingPiece, final int c)
 	{
-		String dir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
+		//String dir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
 			
-		final PromotionWindow shell = new PromotionWindow(Display.getDefault(), dir, c); // composite = new Composite(parent, SWT.NONE);	
+		final PromotionWindow shell = new PromotionWindow(Display.getDefault(), texDir, c); // composite = new Composite(parent, SWT.NONE);	
 		shell.getPane().setMoveData(position, fromSq, toSq, movingPiece, c);
 		shell.open();
 		shell.layout();
