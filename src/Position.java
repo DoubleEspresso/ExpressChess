@@ -373,15 +373,19 @@ public class Position {
 
 		if (isCastle(from, to, piece, color)) 
 		{
+			//System.out.println("..this move is a castle move!");
 			if (!isLegalCastle(from, to, piece, color)) return false;
 			clearAllCastleRights(color);
-
 			return true;			
 		} else if (!isPseudoLegal(from, to, piece, color))
 			return false;
 
+		//System.out.println("    to sq after isPseudoLegal " + to);
+		
 		// check pins/checks etc., sets captured piece.
 		doMove(from, to, piece, color);
+		
+		//System.out.println("    to sq after doMove " + to);
 		
 		// store move state -- kingInCheck calls pseudoLegalMv routines, which
 		// update the movestate
@@ -396,6 +400,8 @@ public class Position {
 
 		Boolean inCheck = kingInCheck(color);
 
+		//System.out.println("    to sq after kingInCheck " + to);
+		
 		// restore move state
 		capturedPiece = tmp_capturedPiece;
 		promotedPiece = tmp_promotedPiece;
@@ -411,12 +417,15 @@ public class Position {
 			return false;
 		}
 			
-		// move is legal -- update position data 
-		if (pieceOn[to] == Piece.KING.P()) clearAllCastleRights(color); // in case king has moved
-		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A1.S() && color == WHITE) clearCastleRights(W_QS);
-		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H1.S() && color == WHITE) clearCastleRights(W_KS);
-		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A8.S() && color == BLACK) clearCastleRights(B_QS);
-		if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H8.S() && color == BLACK) clearCastleRights(B_KS);
+		// move is legal -- update position data
+		if (update)
+		{
+			if (pieceOn[to] == Piece.KING.P()) clearAllCastleRights(color); // in case king has moved
+			if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A1.S() && color == WHITE) clearCastleRights(W_QS);
+			if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H1.S() && color == WHITE) clearCastleRights(W_KS);
+			if (pieceOn[to] == Piece.ROOK.P() && from == Squares.A8.S() && color == BLACK) clearCastleRights(B_QS);
+			if (pieceOn[to] == Piece.ROOK.P() && from == Squares.H8.S() && color == BLACK) clearCastleRights(B_KS);
+		}
 		
 		// update EP square
 		EP_SQ = 0;
@@ -434,7 +443,7 @@ public class Position {
 				EP_SQ = to + 8;
 			}	
 		}
-		if (update && !(moveIsPromotion || moveIsPromotionCapture)) // handle promotion moves separately
+		if (update && !moveIsPromotion ) // handle promotion moves separately
 		{
 			// save fen state
 			++displayedMove;
@@ -596,20 +605,20 @@ public class Position {
 
 	public void clearAllCastleRights(int color)
 	{
-		//System.out.println("all cr before: " + crights);
+		System.out.println("all cr before: " + crights);
 		if (color == WHITE)
 		{
 			crights = (crights & 12);
 		}
 		else crights = (crights & 3);
-		//System.out.println("all cr after: " + crights);
+		System.out.println("all cr after: " + crights);
 	}
 	
 	public void clearCastleRights(int side)
 	{
-		//System.out.println("cr before: side " + side + " "  + crights);
+		System.out.println("cr before: side " + side + " "  + crights);
 		crights = (crights & (~side));
-		//System.out.println("all cr after: " + crights);
+		System.out.println("all cr after: " + crights);
 	}
 	
 	int rowOf(int from) {
@@ -797,12 +806,15 @@ public class Position {
 		for (int j = 0; j < deltas.length; ++j) {
 			int d = deltas[j];
 			int t = from + d;
+			//System.out.println("..pseudoLegal to = " + t + " to-sq = " + to);
 			if (onBoard(t) && (isEmpty(t) || enemyOn(t, enemy))) {
 				if (!isEmpty(t) && !enemyOn(t, enemy))
 					return false;
 				else if (isEmpty(t) && t == to)
 					return true;
-				else if (enemyOn(t, enemy) && t == to) {
+				else if (enemyOn(t, enemy) && t == to) 
+				{
+					//System.out.println("..pseudoLegal set capture true for to = " + t + " to-sq = " + to);
 					moveIsCapture = true;
 					return true;
 				}
@@ -997,12 +1009,15 @@ public class Position {
 			}
 			else
 			{
+				//System.out.println(".....to = " + to + " capturedPiece = " + capturedPiece);
 				List<Integer> wsquares = getPieceSquares(WHITE, getPiece(to));
 				for (int j = 0; j < wsquares.size(); ++j)
+				{
 					if (to == wsquares.get(j)) 
 					{
 						wPieceSquares.get(capturedPiece).remove(j); // remove piece @ to sq
 					}
+				}
 			}
 		}
 		else if (moveIsEP)
@@ -1343,6 +1358,7 @@ public class Position {
 	public Boolean isMate(int from, int to, int piece, int enemy)
 	{
 		clearMoveData();
+		//System.out.println("----------------start isMate routine------------------------");
 		int ks = getPieceSquares(stm, Piece.KING.P()).get(0);
 		if (!isAttacked(ks, stm)) 
 			{ 
@@ -1351,8 +1367,8 @@ public class Position {
 			}
 		clearMoveData();
 		
-		System.out.println("..king attacked");
-		
+		//System.out.println("..king attacked");
+		//System.out.println("--------can king escape----------");
 		// we are in check, can the king escape (includes king captures)
 		int[] tosqs = { ks + 1, ks-1, ks+8, ks-8, ks+7, ks+9, ks-7, ks-9 };
 		for(int j=0; j<tosqs.length; ++j)
@@ -1365,6 +1381,7 @@ public class Position {
 			}
 			clearMoveData();
 		}
+		//System.out.println("--------done checking king escape----------");
 		//System.out.println("..king cannot escape check");
 		
 		// is this a discovered check (means we need to adjust the attacking sq)
@@ -1374,16 +1391,28 @@ public class Position {
 		//if (isDiscovered) System.out.println("..findDiscoveredChecks @ " + dscTo + " piece = " + pieceOn[dscTo]);
 		clearMoveData();
 		
+		//System.out.println("--------done checking isDiscovered----------");
+		
 		// king cannot capture/escape on its own, can we capture the checking piece legally?
-		if (canCapture(to, true)) return false;
+		if (canCapture(to, true)) 
+			{
+				clearMoveData();
+				return false;
+			}
 		clearMoveData();
 		//System.out.println("..cannot capture checking piece");
 		
+		//System.out.println("--------done checking canCapture----------");
+		
 		if (isDiscovered)
 		{
-			if (canCapture(dscTo, true)) return false; // only *LEGAL* captures so double checks will fail this
+			if (canCapture(dscTo, true)) 
+			{
+				clearMoveData();
+				return false; // only *LEGAL* captures so double checks will fail this
+			}
 			clearMoveData();
-			System.out.println("..cannot capture discovered piece");
+			//System.out.println("..cannot capture discovered piece");
 		}
 		
 		// cannot capture checking piece legally, can we block the check?
@@ -1404,6 +1433,7 @@ public class Position {
 		}
 		clearMoveData();
 		//if (!canBlock) System.out.println("..cannot block nondiscovered move");
+		//System.out.println("--------done checking blocking moves non-discovered----------");
 		
 		Boolean canBlockd = false;
 		if (isDiscovered)
@@ -1423,13 +1453,13 @@ public class Position {
 
 			//if (!canBlockd ) System.out.println("..cannot block discovered move");
 		}
-		
+		//System.out.println("--------done checking is mate----------");
 		return !canBlock && !canBlockd;
 	}
 	
 	public Boolean isStaleMate()
 	{
-		
+		//System.out.println("----------------start stalemate routine------------------------");
 		// king moves
 		List<Integer> ksquares = getPieceSquares(stm, Piece.KING.P());
 		for (int j = 0; j < ksquares.size(); ++j) {
@@ -1437,12 +1467,16 @@ public class Position {
 			List<Integer> to_sqs = getKingMoves(from, stm); // no move data was updated
 			for (int k = 0; k < to_sqs.size(); ++k)
 			{
+				
 				int to = to_sqs.get(k);
+				//System.out.println("..to = " + to + " empty? = " + isEmpty(to));
 				if (isLegal(from, to, Piece.KING.P(), stm, false))
 					{
 						clearMoveData();
 						return false;
 					}
+				clearMoveData();
+				//System.out.println("..to = " + to + " NOT LEGAL ");
 			}
 		}
 		
@@ -1459,6 +1493,7 @@ public class Position {
 						clearMoveData();
 						return false;
 					}
+				clearMoveData();
 			}
 		}
 		
@@ -1475,6 +1510,7 @@ public class Position {
 						clearMoveData();
 						return false;
 					}
+				clearMoveData();
 			}
 		}
 		
@@ -1491,6 +1527,7 @@ public class Position {
 						clearMoveData();
 						return false;
 					}
+				clearMoveData();
 			}
 		}
 		
@@ -1507,6 +1544,7 @@ public class Position {
 						clearMoveData();
 						return false;
 					}
+				clearMoveData();
 			}
 		}
 		
@@ -1523,6 +1561,7 @@ public class Position {
 						clearMoveData();
 						return false;
 					}
+				clearMoveData();
 			}
 		}
 		

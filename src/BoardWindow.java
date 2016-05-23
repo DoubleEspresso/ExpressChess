@@ -31,6 +31,7 @@ public class BoardWindow extends GLWindow
 	private int movingPiece = -1;
 	private int movingColor = -1;
 	private Composite parent = null;
+	private EngineUCI engine =  null;
 	
 	public BoardWindow(Composite parent) 
 	{
@@ -44,9 +45,27 @@ public class BoardWindow extends GLWindow
 		position.setStartFen();
 		
 		loadBoardTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light");
-		loadPiecesTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132");		
+		loadPiecesTexture("/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132");
+		
+		// try UCI engine
+		engine = new EngineUCI("/home/mjg/java-workspace-mars/ExpressChess/engines/UCI/hedwig-64.exe", null);
+		
+		if (engine.isReady())
+		{
+			System.out.println("..engine ready");
+		}
+		else
+		{
+			System.out.println("..engine ready failed, closing");
+			engine.close();
+		}
 	}
 
+	public EngineUCI engineHandle()
+	{
+		return engine;
+	}
+	
 	public Boolean loadBoardTexture(String directory)
 	{		
 		if (boardSquares == null) boardSquares = new ArrayList<Texture>();
@@ -377,7 +396,6 @@ public class BoardWindow extends GLWindow
 			Vec2 p = squareFromMouse(v);
 			int r = (int) p.x; int c = (int) p.y;
 			toSq = 8*r + c;
-			
 			if (position.isLegal(fromSq, toSq, movingPiece, movingColor, true))
 			{
 				// drop piece..handle all special move types

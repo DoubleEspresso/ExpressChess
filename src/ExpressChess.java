@@ -77,7 +77,7 @@ public class ExpressChess extends Shell
 //		Canvas canvas = new Canvas(composite, SWT.NONE);
 //		canvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
 
-		BoardWindow canvas = new BoardWindow(composite);
+		final BoardWindow canvas = new BoardWindow(composite);
 		canvas.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
 		canvas.refresh();
 		
@@ -90,14 +90,6 @@ public class ExpressChess extends Shell
 		gd_list.widthHint = 126;
 		list.setLayoutData(gd_list);
 		
-
-		
-		/*the chess board*/
-		//final BoardWindow canvas = new BoardWindow(getShell());
-		//GridData gridData = new GridData(GridData.FILL, GridData.FILL, true, true);
-		//gridData.verticalSpan = 2;
-		//canvas.setLayoutData(gridData);
-		
 		createContents();
 
 		getShell().addListener(SWT.Traverse, new Listener() 
@@ -107,6 +99,7 @@ public class ExpressChess extends Shell
 				switch (event.detail) 
 				{
 				case SWT.TRAVERSE_ESCAPE:
+					canvas.engineHandle().close();
 					getShell().close();
 					event.detail = SWT.TRAVERSE_NONE;
 					event.doit = false;
