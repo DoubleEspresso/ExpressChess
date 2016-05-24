@@ -92,42 +92,29 @@ public class EngineUCI
 		return response;
 	}
 	
-	public void listen(final String token)
-	{
+	public void listen(final String token) {
 		String line;
-		System.out.println("..starting listen thread.");
-		while(true)
-		{
-			
 		while (scanner.hasNextLine()) {
-		  line = scanner.nextLine();
-		  System.out.println(line);
-		  if (line.contains(token)) 
-			  { 
-			  	if (token == "bestmove") 
-			  	{
-			  		synchronized(hasMove)
-			  		{
-			  			bestMoveString = line;
-			  			hasMove.notify();
-			  		}
-			  	}
-			  }		  
-			} 
 			
+			line = scanner.nextLine();
+			System.out.println(line);
+			
+			if (line.contains(token)) {
+				
+				if (token == "bestmove") {
+					
+					synchronized (hasMove) {
+						
+						bestMoveString = line;
+						hasMove.notify();
+					}
+				}
+			}
 		}
-		
 	}
 	
-	public void close()
-	{
-		//try {
-			//listeningThread.join();
-			p.destroy();
-//		} catch (InterruptedException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		};
-		
+	public void close() {
+		p.destroy();
+
 	}
 }

@@ -110,8 +110,11 @@ public class ExpressChess extends Shell
 			}
 		});
 
-		
-
+		getShell().addListener(SWT.Close, new Listener() {
+			public void handleEvent(Event event) {
+				canvas.engineHandle().close();
+			}
+		});
 	}
 	
 	protected void createContents() 

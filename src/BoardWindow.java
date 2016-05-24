@@ -488,18 +488,12 @@ public class BoardWindow extends GLWindow
 				// send move data to engine
 				String fen = position.getPosition(position.maxDisplayedMoveIdx(), 0);
 				engine.UCI_CMD("position fen " + fen);
-				try {
-					Thread.sleep(300);
-				} catch (InterruptedException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				}
+
 				engine.UCI_CMD("go wtime 8000 btime 8000");
-				// start listening for response
+
 				
 				engine.startListening("bestmove");
-				//engine.listen("bestmove");
-				// send response to gui.
+
 			}
 			
 			position.clearMoveData();
