@@ -57,7 +57,7 @@ public abstract class GLWindow extends GLCanvas
 	
 	private void addResizeListener()
 	{
-		parent.addListener(SWT.Resize, new Listener()
+		addListener(SWT.Resize, new Listener()
 		{
 			@Override 
 			public void handleEvent(Event e)

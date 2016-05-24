@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.Scanner;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class EngineUCI 
 {
@@ -13,6 +15,10 @@ public class EngineUCI
 	Thread listeningThread = null;
 	private BoardWindow bw = null;
 	Scanner scanner = null;
+	//public ReentrantLock MoveMutex = new ReentrantLock();
+	public Object hasMove = new Object() ; //.newCondition();
+	public String bestMoveString = null;
+	
 	public EngineUCI(String exe, String[] options, BoardWindow bw)
 	{
 		try {
@@ -29,17 +35,30 @@ public class EngineUCI
 			e.printStackTrace();
 		}
 	}
-	private void startListening(final String s)
+	public void startListening(final String s)
 	{
 		listeningThread = new Thread( new Runnable()
 				{
 
 					@Override
 					public void run() {
-						listen(s);			
+						//synchronized(hasMove)
+						{
+							listen(s);
+						}
 					}				
 				});
 		listeningThread.start();
+	}
+	
+	public void stopListening()
+	{
+		try {
+			listeningThread.join();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 	
 	public Boolean isReady()
@@ -76,9 +95,10 @@ public class EngineUCI
 	public void listen(final String token)
 	{
 		String line;
-		//Scanner scanner = new Scanner(p.getInputStream());
 		System.out.println("..starting listen thread.");
-		
+		while(true)
+		{
+			
 		while (scanner.hasNextLine()) {
 		  line = scanner.nextLine();
 		  System.out.println(line);
@@ -86,13 +106,17 @@ public class EngineUCI
 			  { 
 			  	if (token == "bestmove") 
 			  	{
-			  		bw.moveFromEngine(line);
-			  		break;
+			  		synchronized(hasMove)
+			  		{
+			  			bestMoveString = line;
+			  			hasMove.notify();
+			  		}
 			  	}
-			  }
-		  //Thread.sleep(30);
+			  }		  
+			} 
+			
 		}
-		//scanner.close();
+		
 	}
 	
 	public void close()

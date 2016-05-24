@@ -4,6 +4,7 @@ import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.MouseEvent;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -41,6 +42,7 @@ public class BoardWindow extends GLWindow
 	private int movingColor = -1;
 	private Composite parent = null;
 	private EngineUCI engine =  null;
+	private Thread engineEventThread = null;
 	
 	public BoardWindow(Composite parent) 
 	{
@@ -68,6 +70,19 @@ public class BoardWindow extends GLWindow
 			System.out.println("..engine ready failed, closing");
 			engine.close();
 		}
+		
+		engineEventThread = new Thread( new Runnable()
+		{
+
+			@Override
+			public void run() {
+				//synchronized(engine.hasMove)
+				{
+				monitorEngineEvents();
+				}
+			}				
+		});
+		engineEventThread.start();
 	}
 
 	public EngineUCI engineHandle()
@@ -292,6 +307,32 @@ public class BoardWindow extends GLWindow
 		}
 	}
 	
+	public void monitorEngineEvents()
+	{
+		//engine.MoveMutex.lock();
+		while(true)
+		{
+			try {
+				synchronized(engine.hasMove)
+				{
+					engine.hasMove.wait();
+				}
+				//System.out.println("FOUND MOVE!" + engine.bestMoveString);
+			
+				Display.getDefault().asyncExec(new Runnable()
+				{			
+					public void run()
+					{
+						moveFromEngine(engine.bestMoveString);
+					}			
+				});
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+	
 	@Override
 	public void onMouseScroll(MouseEvent e) 
 	{
@@ -455,7 +496,9 @@ public class BoardWindow extends GLWindow
 				}
 				engine.UCI_CMD("go wtime 8000 btime 8000");
 				// start listening for response
-				engine.listen("bestmove");
+				
+				engine.startListening("bestmove");
+				//engine.listen("bestmove");
 				// send response to gui.
 			}
 			
