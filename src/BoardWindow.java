@@ -367,12 +367,12 @@ public class BoardWindow extends GLWindow
         glOrtho(0, w, h, 0, 0, 1);
 
         glMatrixMode(GL_MODELVIEW);
+        
         glViewport( 0, 0, w, h);
         
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+        glLoadIdentity();
 		//glClearColor(1f, 1f, 1f, 1f);
-		
-		glLoadIdentity();
 		
 		fixAspectRatio(w,h);		
 		renderSquares(gl, (int) BoardDims.x, (int) BoardDims.y);
@@ -460,6 +460,7 @@ public class BoardWindow extends GLWindow
 			toSq = 8*r + c;
 			if (position.isLegal(fromSq, toSq, movingPiece, movingColor, true))
 			{
+				System.out.println("..is legal");
 				// drop piece..handle all special move types
 				position.doMove(fromSq, toSq, movingPiece, movingColor);
 				// pawn is now sitting at "to" square

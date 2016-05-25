@@ -191,13 +191,14 @@ public abstract class GLWindow extends GLCanvas
 	
 	public void onResize(int w, int h) 
 	{
-        glMatrixMode( GL_PROJECTION );
-        glClearColor(0f, 0f, 0f, 0f);
-        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT); // helps to stop flickering on resize        
-        glLoadIdentity();               
-        glOrtho(0, w, h, 0, 0, 1);        
-        glMatrixMode(GL_MODELVIEW);
-        glViewport( 0, 0, w, h);        
+//        glMatrixMode( GL_PROJECTION );
+//        glClearColor(0f, 0f, 0f, 0f);
+//        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT); // helps to stop flickering on resize        
+//        glLoadIdentity();               
+//        glOrtho(0, w, h, 0, 0, 1);        
+//        glMatrixMode(GL_MODELVIEW);
+//        glViewport( 0, 0, w, h); 
+			refresh();
 	}
 	
 	public Rectangle windowSize()

@@ -102,7 +102,7 @@ public class Position {
 	private Boolean moveIsCastle = false;
 	private int displayedMove = 0;
 	
-	public static String StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+	public static String StartFen = "r3kb1r/p5pp/2pq1p2/1p2n3/3pPB2/1B1P1PQP/PPP5/R3R1K1 b kq -";//rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 	public Position() {
 		clear();
@@ -427,7 +427,7 @@ public class Position {
 
 		Boolean inCheck = kingInCheck(color);
 
-		//System.out.println("    to sq after kingInCheck " + to);
+		//System.out.println("    to sq after kingInCheck " + to + " inCheck = " + inCheck);
 		
 		// restore move state
 		capturedPiece = tmp_capturedPiece;
@@ -597,7 +597,7 @@ public class Position {
 		} else {
 			if (!isEmpty(sqLeft1) && !isEmpty(sqLeft2))
 				return false;
-			if (isAttacked(sqRight1, color) || isAttacked(sqRight2, color))
+			if (isAttacked(sqLeft1, color) || isAttacked(sqLeft2, color))
 				return false;
 			if (kingInCheck(color))
 				return false;
@@ -622,9 +622,15 @@ public class Position {
 			}
 		} else {
 			if (to == Squares.G8.S() && (ks == 4))
+			{
+				//System.out.println(" black hasCastleRights has ks crs");
 				return true;
+			}
 			else if (to == Squares.C8.S() && (qs == 8))
+			{
+				//System.out.println("black hasCastleRights has qs crs");
 				return true;
+			}
 		}
 		//System.out.println("hasCastleRights no correct crs");
 		return false;
@@ -632,18 +638,18 @@ public class Position {
 
 	public void clearAllCastleRights(int color)
 	{
-		System.out.println("all cr before: " + crights);
+		//System.out.println("all cr before: " + crights);
 		if (color == WHITE)
 		{
 			crights = (crights & 12);
 		}
 		else crights = (crights & 3);
-		System.out.println("all cr after: " + crights);
+		//System.out.println("all cr after: " + crights);
 	}
 	
 	public void clearCastleRights(int side)
 	{
-		System.out.println("cr before: side " + side + " "  + crights);
+		//System.out.println("cr before: side " + side + " "  + crights);
 		crights = (crights & (~side));
 		System.out.println("all cr after: " + crights);
 	}
@@ -757,7 +763,7 @@ public class Position {
 
 		for (int j = 0; j < deltas.length; ++j) {
 			int t = deltas[j] + from;
-			if (t != to)
+			if (t != to || (colDiff(from, to) != 2 && colDiff(from,to) != 1))
 				continue;
 			else if (!onBoard(t) || (!isEmpty(to) && !enemyOn(to, enemy)))
 				return false;
@@ -773,16 +779,20 @@ public class Position {
 
 	private Boolean pseudoLegalBishopMove(int from, int to, int color) {
 
+		//System.out.println("..checking bishop move from = " + from + " to = " + to);
 		int[] deltas = { 7, 9, -7, -9 };
 		int enemy = (color == WHITE ? BLACK : WHITE);
 		for (int j = 0; j < deltas.length; ++j) {
 			int d = deltas[j];
 			int c = 1;
 			int t = from + d * c;
+			
 			while (onBoard(t) && onDiag(from, t) && (isEmpty(t) || enemyOn(t, enemy))) {
+				//System.out.println(" t = " + t);
 				if (!isEmpty(t) && t != to)
 					break;
 				else if (isEmpty(t) && t == to) {
+					//System.out.println(" return true @ t = " + t);
 					return true;
 				} else if (enemyOn(t, enemy) && t == to) {
 					moveIsCapture = true;
@@ -1283,8 +1293,10 @@ public class Position {
 	// to check if white's king is in check (so c == white).
 	
 	public Boolean kingInCheck(int c) {
-		int ks = getPieceSquares(c, Piece.KING.P()).get(0); // should only ever
-															// be 1 king
+		int ks = getPieceSquares(c, Piece.KING.P()).get(0); 
+		
+		//System.out.println(" ks = " + ks);
+		
 		int enemy = (c == WHITE ? BLACK : WHITE);
 
 		// pawn checks
@@ -1292,7 +1304,10 @@ public class Position {
 		for (int j = 0; j < psquares.size(); ++j) {
 			int to = psquares.get(j);
 			if (pseudoLegalPawnMove(ks, to, c))
+			{
+				//System.out.println(" pawn check ");
 				return true;
+			}
 		}
 
 		// knight checks
@@ -1300,7 +1315,10 @@ public class Position {
 		for (int j = 0; j < nsquares.size(); ++j) {
 			int to = nsquares.get(j);
 			if (pseudoLegalKnightMove(ks, to, c))
+			{
+				//System.out.println(" knight check from = " + j);
 				return true;
+			}
 		}
 
 		// bishop checks .. return a list of "to" squares being the enemy
@@ -1309,7 +1327,10 @@ public class Position {
 		for (int j = 0; j < bsquares.size(); ++j) {
 			int to = bsquares.get(j);
 			if (pseudoLegalBishopMove(ks, to, c))
+			{
+				//System.out.println(" bishop check from = " + j);
 				return true;
+			}
 		}
 
 		// rook checks
@@ -1317,7 +1338,10 @@ public class Position {
 		for (int j = 0; j < rsquares.size(); ++j) {
 			int to = rsquares.get(j);
 			if (pseudoLegalRookMove(ks, to, c))
+			{
+				//System.out.println(" rook check from = " + j);
 				return true;
+			}
 		}
 
 		// queen checks
@@ -1325,7 +1349,10 @@ public class Position {
 		for (int j = 0; j < qsquares.size(); ++j) {
 			int to = qsquares.get(j);
 			if (pseudoLegalQueenMove(ks, to, c))
+			{
+				//System.out.println(" queen check from = " + j);
 				return true;
+			}
 		}
 
 		return false;
