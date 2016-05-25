@@ -20,14 +20,14 @@ public class BoardWindow extends GLWindow
 	private List<Texture> boardSquares = null;
 	
 	// linux definition
-	//private static String texDir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
-	//private static String btexDir  = "/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light";
-	//private static String EngineDir = "/home/mjg/java-workspace-mars/ExpressChess/engines/UCI/hedwig-64.exe";
+	private static String texDir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
+	private static String btexDir  = "/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light";
+	private static String EngineDir = "/home/mjg/java-workspace-mars/ExpressChess/engines/UCI/hedwig-64.exe";
 	
 	// win defs
-	private static String texDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\pieces\\132";
-	private static String btexDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\boards\\wooden-light";
-	private static String EngineDir = "A:\\software\\java-workspace\\ExpressChess\\engine\\UCI\\hedwig-64.exe";
+//	private static String texDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\pieces\\132";
+//	private static String btexDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\boards\\wooden-light";
+//	private static String EngineDir = "A:\\software\\java-workspace\\ExpressChess\\engine\\UCI\\hedwig-64.exe";
 	
 	private Boolean hasSquares = false;
 	private Boolean hasPieces = false;
@@ -43,6 +43,7 @@ public class BoardWindow extends GLWindow
 	private Composite parent = null;
 	private EngineUCI engine =  null;
 	private Thread engineEventThread = null;
+	public Boolean alive = false;
 	
 	public BoardWindow(Composite parent) 
 	{
@@ -71,9 +72,10 @@ public class BoardWindow extends GLWindow
 			engine.close();
 		}
 		
+		alive = true;
 		engineEventThread = new Thread( new Runnable()
 		{
-
+			
 			@Override
 			public void run() {
 				//synchronized(engine.hasMove)
@@ -85,6 +87,12 @@ public class BoardWindow extends GLWindow
 		engineEventThread.start();
 	}
 
+	public void stopListening()
+	{
+		engineEventThread.interrupt();
+
+	}
+	
 	public EngineUCI engineHandle()
 	{
 		return engine;
@@ -310,7 +318,7 @@ public class BoardWindow extends GLWindow
 	public void monitorEngineEvents()
 	{
 		//engine.MoveMutex.lock();
-		while(true)
+		while(alive)
 		{
 			try {
 				synchronized(engine.hasMove)
@@ -361,8 +369,8 @@ public class BoardWindow extends GLWindow
         glMatrixMode(GL_MODELVIEW);
         glViewport( 0, 0, w, h);
         
-        //glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
-		glClearColor(1f, 1f, 1f, 1f);
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+		//glClearColor(1f, 1f, 1f, 1f);
 		
 		glLoadIdentity();
 		

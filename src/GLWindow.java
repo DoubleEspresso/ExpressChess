@@ -146,8 +146,8 @@ public abstract class GLWindow extends GLCanvas
 					
 					Rectangle r = windowSize();
 					setCurrent();									
-					paint(null, r.width, r.height);					
-					swapBuffers();				
+					paint(null, r.width, r.height);	
+					swapBuffers();
 				}
 			}			
 		});

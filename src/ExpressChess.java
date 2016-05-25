@@ -7,10 +7,7 @@ import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.swt.widgets.MenuItem;
-import org.eclipse.swt.widgets.Canvas;
-import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Group;
 import org.eclipse.swt.widgets.List;
 
 public class ExpressChess extends Shell 
@@ -37,6 +34,7 @@ public class ExpressChess extends Shell
 		{
 			e.printStackTrace();
 		}
+
 	}
 
 	public ExpressChess(final Display display) 
@@ -112,6 +110,9 @@ public class ExpressChess extends Shell
 
 		getShell().addListener(SWT.Close, new Listener() {
 			public void handleEvent(Event event) {
+				canvas.alive = false;
+				canvas.engineHandle().signal();
+				//canvas.stopListening();
 				canvas.engineHandle().close();
 			}
 		});
@@ -120,7 +121,7 @@ public class ExpressChess extends Shell
 	protected void createContents() 
 	{
 		setText("Express Chess");
-		setSize(695, 583);
+		setSize(1075, 883);
 	}
 
 	@Override

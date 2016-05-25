@@ -92,6 +92,11 @@ public class EngineUCI
 		return response;
 	}
 	
+	public void signal() { synchronized (hasMove) {
+		
+		hasMove.notify();
+	} }
+	
 	public void listen(final String token) {
 		String line;
 		while (scanner.hasNextLine()) {
@@ -113,7 +118,9 @@ public class EngineUCI
 		}
 	}
 	
-	public void close() {
+	public void close() 
+	{
+		
 		p.destroy();
 
 	}
