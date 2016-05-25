@@ -11,9 +11,7 @@ import org.eclipse.swt.opengl.GLCanvas;
 import org.eclipse.swt.opengl.GLData;
 import org.eclipse.swt.widgets.*;
 import org.lwjgl.opengl.GL;
-import org.lwjgl.opengl.GLCapabilities;
 
-import static org.lwjgl.opengl.GL11.*;
 
 public abstract class GLWindow extends GLCanvas 
 {

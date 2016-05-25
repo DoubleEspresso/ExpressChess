@@ -102,7 +102,7 @@ public class Position {
 	private Boolean moveIsCastle = false;
 	private int displayedMove = 0;
 	
-	public static String StartFen = "r3kb1r/p5pp/2pq1p2/1p2n3/3pPB2/1B1P1PQP/PPP5/R3R1K1 b kq -";//rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+	public static String StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 	public Position() {
 		clear();
@@ -708,7 +708,7 @@ public class Position {
 		if (on2) {
 			if ((from + forward1) == to && isEmpty(to))
 				return true;
-			else if ((from + forward2) == to && isEmpty(to))
+			else if ((from + forward2) == to && isEmpty(to) && isEmpty(from + forward1))
 			{
 				return true;
 			}
@@ -845,8 +845,9 @@ public class Position {
 			int t = from + d;
 			//System.out.println("..pseudoLegal to = " + t + " to-sq = " + to);
 			if (onBoard(t) && (isEmpty(t) || enemyOn(t, enemy))) {
-				if (!isEmpty(t) && !enemyOn(t, enemy))
+				if ((!isEmpty(t) && !enemyOn(t, enemy)))
 					return false;
+				else if ( (rowDiff(from, to) > 1 || colDiff(from,to) > 1) ) return false;
 				else if (isEmpty(t) && t == to)
 					return true;
 				else if (enemyOn(t, enemy) && t == to) 
