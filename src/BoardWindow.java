@@ -4,7 +4,6 @@ import java.util.List;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.KeyEvent;
 import org.eclipse.swt.events.MouseEvent;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
@@ -46,7 +45,8 @@ public class BoardWindow extends GLWindow
 	public Boolean alive = false;
 	EngineListener engineMonitor = null;
 	UCIEngineHandler uciEngineHandler = null;
-	
+	private Boolean mouseRightClick = false;
+	private Vec2 startDragPos = new Vec2(0,0);
 	
 	public BoardWindow(Composite parent) 
 	{
@@ -210,7 +210,6 @@ public class BoardWindow extends GLWindow
 		float oX = (getClientArea().width - w)/2f;
 		float oY = (getClientArea().height - h)/2f;
 		Texture t;		
-		
 		glEnable(GL_TEXTURE_2D);
 		
 		// loop backward -- java composite has 0,0 defined in upper left corner
@@ -245,8 +244,35 @@ public class BoardWindow extends GLWindow
 				if (draggedPiece(r, c)) continue;
 				renderPiece(dX, dY, r, c);
 			}
-		}
+		}		
+		
 		renderDraggingPiece(dX, dY); // render dragging piece last, so it render *over* all other textures.
+		renderGraphics();
+	}
+	
+	private void renderGraphics()
+	{
+		if (!mouseRightClick) return;
+		
+		if (MousePos != startDragPos)
+		{
+			glDisable(GL_TEXTURE_2D);
+			glPushMatrix();
+			glLoadIdentity();
+			//glEnable(GL_BLEND); // blend to remove ugly piece background
+			//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);		
+			
+
+			glLineWidth(175);
+			glBegin(GL_LINE_STRIP);	
+			//glColor4f(1f, 1f, 1f, 1f);
+			glVertex2d(startDragPos.x,startDragPos.y ); 
+			glVertex2d(MousePos.x, MousePos.y ); 
+			glEnd();
+			//glDisable(GL_BLEND);
+			glPopMatrix();
+			
+		}
 	}
 	
 	private Boolean draggedPiece(int r, int c)
@@ -382,11 +408,11 @@ public class BoardWindow extends GLWindow
         
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
         glLoadIdentity();
-		//glClearColor(1f, 1f, 1f, 1f);
+		glClearColor(1f, 1f, 1f, 1f);
 		
 		fixAspectRatio(w,h);		
 		renderSquares(gl, (int) BoardDims.x, (int) BoardDims.y);
-
+		
 	}
 
 	private void fixAspectRatio(int w, int h)
@@ -424,6 +450,7 @@ public class BoardWindow extends GLWindow
 		MousePos.x = e.x;
 		MousePos.y = e.y;
 		if (draggingPiece && ActivePiece != null) refresh();
+		else if (mouseRightClick) refresh();
 	}
 
 	@Override
@@ -431,6 +458,7 @@ public class BoardWindow extends GLWindow
 	{
 		Vec2 v = new Vec2(e.x, e.y);
 		Vec2 p = squareFromMouse(v);
+		
 		int r = (int) p.x; int c = (int) p.y;
 		int s = 8*r + c;
 		if (position.hasPiece(s))
@@ -524,6 +552,8 @@ public class BoardWindow extends GLWindow
 			toSq = -1;	
 			movingColor = -1;
 			movingPiece = -1;
+			
+			mouseRightClick = false;
 		}
 		draggingPiece = false;
 		ActivePiece = null;
@@ -658,6 +688,24 @@ public class BoardWindow extends GLWindow
 	@Override
 	public void onKeyReleased(KeyEvent e) {
 		// TODO Auto-generated method stub		
+	}
+
+	@Override
+	public void onMouseRightClick(Event e) {
+		
+		Vec2 v = new Vec2(e.x, e.y);
+		Vec2 p = squareFromMouse(v);
+
+		mouseRightClick = true;
+		startDragPos = new Vec2(v);
+		System.out.println("set mouse rightclick = true");
+
+	}
+
+	@Override
+	public void onMouseRightUp(Event e) {
+		mouseRightClick = false;
+		startDragPos.set(new Vec2(0,0));
 	}
 
 }

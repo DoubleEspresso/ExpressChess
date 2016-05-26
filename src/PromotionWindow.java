@@ -312,5 +312,17 @@ class ImagePane extends GLWindow
 		// TODO Auto-generated method stub
 		
 	}
+
+	@Override
+	public void onMouseRightClick(Event e) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void onMouseRightUp(Event e) {
+		// TODO Auto-generated method stub
+		
+	}
 	
 }

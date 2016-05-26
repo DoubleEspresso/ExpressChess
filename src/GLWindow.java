@@ -42,7 +42,9 @@ public abstract class GLWindow extends GLCanvas
        	addMouseUpListener();
        	addDoubleClickListener();
        	addPaintListener();
-       	addKeyListener();       
+       	addKeyListener();  
+       	addMouseRightClickListener();
+       	addMouseRightUpListener();
     }
     
     public void initGL()
@@ -82,6 +84,23 @@ public abstract class GLWindow extends GLCanvas
 		});
 	}
 	
+	private void addMouseRightClickListener()
+	{
+		addListener(SWT.MouseDown, new Listener()
+		{
+
+			@Override
+			public void handleEvent(Event e) {
+				if (e.button == 3) // right-click mouse button
+				{
+					System.out.println("GOT RIGHT_CLICK EVENT!!");
+					setCurrent();
+					onMouseRightClick(e);
+				}
+			}
+		});
+	}
+	
 	private void addMouseUpListener()
 	{
 		addListener(SWT.MouseUp, new Listener()
@@ -93,6 +112,22 @@ public abstract class GLWindow extends GLCanvas
 				{
 					setCurrent();
 					onMouseUp(e);
+				}
+			}
+		});
+	}
+	
+	private void addMouseRightUpListener()
+	{
+		addListener(SWT.MouseUp, new Listener()
+		{
+			@Override 
+			public void handleEvent(Event e)
+			{
+				if (e.button == 3) // right mouse button
+				{
+					setCurrent();
+					onMouseRightUp(e);
 				}
 			}
 		});
@@ -227,5 +262,7 @@ public abstract class GLWindow extends GLCanvas
 	public abstract void onMouseDoubleClick(Event e);	
 	public abstract void onKeyPressed(KeyEvent e);
 	public abstract void onKeyReleased(KeyEvent e);
+	public abstract void onMouseRightClick(Event e);
+	public abstract void onMouseRightUp(Event e);
 }
 
