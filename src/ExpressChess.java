@@ -110,10 +110,11 @@ public class ExpressChess extends Shell
 
 		getShell().addListener(SWT.Close, new Listener() {
 			public void handleEvent(Event event) {
-				canvas.alive = false;
-				canvas.engineHandle().signal();
+				canvas.release();
+				//canvas.alive = false;
+				//canvas.engineHandle().signal();
 				//canvas.stopListening();
-				canvas.engineHandle().close();
+				//canvas.engineHandle().close();
 			}
 		});
 	}

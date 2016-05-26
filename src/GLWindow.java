@@ -20,6 +20,7 @@ public abstract class GLWindow extends GLCanvas
     protected int minWidth = 600;
     protected int minHeight = 480;
     protected Composite parent;
+    
     static 
     {
         gd1 = new GLData();

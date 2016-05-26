@@ -44,6 +44,9 @@ public class BoardWindow extends GLWindow
 	private EngineUCI engine =  null;
 	private Thread engineEventThread = null;
 	public Boolean alive = false;
+	EngineListener engineMonitor = null;
+	UCIEngineHandler uciEngineHandler = null;
+	
 	
 	public BoardWindow(Composite parent) 
 	{
@@ -60,19 +63,25 @@ public class BoardWindow extends GLWindow
 		loadPiecesTexture(texDir);
 		
 		// try UCI engine
-		engine = new EngineUCI(EngineDir, null, this);
+		//engine = new EngineUCI(EngineDir, null, this);
 		
-		if (engine.isReady())
-		{
-			System.out.println("..engine ready");
-		}
-		else
-		{
-			System.out.println("..engine ready failed, closing");
-			engine.close();
-		}
+//		if (engine.isReady())
+//		{
+//			System.out.println("..engine ready");
+//		}
+//		else
+//		{
+//			System.out.println("..engine ready failed, closing");
+//			engine.close();
+//		}
 		
 		alive = true;
+		
+		// run in background
+		uciEngineHandler = new UCIEngineHandler(this);
+		engineMonitor = new EngineListener(uciEngineHandler, EngineDir, null);
+		
+		
 		engineEventThread = new Thread( new Runnable()
 		{
 			
@@ -80,7 +89,8 @@ public class BoardWindow extends GLWindow
 			public void run() {
 				//synchronized(engine.hasMove)
 				{
-				monitorEngineEvents();
+				 //monitorEngineEvents();
+					engineMonitor.run();
 				}
 			}				
 		});
@@ -496,12 +506,15 @@ public class BoardWindow extends GLWindow
 				
 				// send move data to engine
 				String fen = position.getPosition(position.maxDisplayedMoveIdx(), 0);
-				engine.UCI_CMD("position fen " + fen);
+				engineMonitor.sendCommand("position fen " + fen);
+				engineMonitor.sendCommand("go wtime 8000 btime 8000");
+				
+				//engine.UCI_CMD("position fen " + fen);
 
-				engine.UCI_CMD("go wtime 8000 btime 8000");
+				//engine.UCI_CMD("go wtime 8000 btime 8000");
 
 				
-				engine.startListening("bestmove");
+				//engine.startListening("bestmove");
 
 			}
 			
@@ -523,7 +536,7 @@ public class BoardWindow extends GLWindow
 		Vec2 fromto = Position.getFromTo(move);
 		
 		int from = (int) fromto.x; int to = (int) fromto.y;
-		System.out.println("from = " + from + " to = " + to);
+		//System.out.println("from = " + from + " to = " + to);
 		if (position.hasPiece(from))
 		{
 			fromSq = from; toSq = to;
@@ -624,6 +637,11 @@ public class BoardWindow extends GLWindow
 
 	}
 	
+	public void release()
+	{
+		engineMonitor.close();
+	}
+	
 	@Override
 	public void onMouseDoubleClick(Event e) 
 	{
@@ -639,8 +657,34 @@ public class BoardWindow extends GLWindow
 
 	@Override
 	public void onKeyReleased(KeyEvent e) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub		
+	}
+
+}
+
+class UCIEngineHandler extends UCIEvents
+{
+
+	public UCIEngineHandler(BoardWindow bw) {
+		super(bw);
+	}
+
+	@Override
+	public void onBestMoveEvent(final String bestMove) {
+		Display.getDefault().asyncExec(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				bw.moveFromEngine(bestMove);
+			}
+		});	
 		
 	}
 
+	@Override
+	public void onThinkLineEvent(String line) {
+		System.out.println(line);
+	}
+	
 }
