@@ -19,14 +19,14 @@ public class BoardWindow extends GLWindow
 	private List<Texture> boardSquares = null;
 	
 	// linux definition
-//	private static String texDir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
-//	private static String btexDir  = "/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light";
-//	private static String EngineDir = "/home/mjg/java-workspace-mars/ExpressChess/engines/UCI/hedwig-64.exe";
+	private static String texDir = "/home/mjg/java-workspace-mars/ExpressChess/graphics/pieces/merida/132";
+	private static String btexDir  = "/home/mjg/java-workspace-mars/ExpressChess/graphics/boards/wooden-light";
+	private static String EngineDir = "/home/mjg/java-workspace-mars/ExpressChess/engines/UCI/hedwig-64.exe";
 	
 	// win defs
-	private static String texDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\pieces\\132";
-	private static String btexDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\boards\\wooden-light";
-	private static String EngineDir = "A:\\software\\java-workspace\\ExpressChess\\engine\\UCI\\hedwig-64.exe";
+//	private static String texDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\pieces\\132";
+//	private static String btexDir = "A:\\software\\java-workspace\\ExpressChess\\graphics\\boards\\wooden-light";
+//	private static String EngineDir = "A:\\software\\java-workspace\\ExpressChess\\engine\\UCI\\hedwig-64.exe";
 	
 	private Boolean hasSquares = false;
 	private Boolean hasPieces = false;
@@ -234,7 +234,8 @@ public class BoardWindow extends GLWindow
 	        	glTexCoord2f(0, 1); glVertex2d(oX + c*dX, oY + (r+1)*dY);
 	        	glEnd();	        	
 			}		
-		}		
+		}	
+		
 		// render pieces after all squares are rendered .. else dragging pieces sometimes renders squares over the dragging piece
 		for (int r =0; r <8; ++r)
 		{
@@ -246,33 +247,20 @@ public class BoardWindow extends GLWindow
 			}
 		}		
 		
+		if (mouseRightClick) 
+		{
+			Vec2 tmp = squareFromMouse(startDragPos);
+			int r = (int)(7- tmp.x); int c = (int) tmp.y;
+			Vec2 start = new Vec2((oX + c*dX)+0.60*dX, (oY+r*dY)+0.5*dY);
+			tmp = squareFromMouse(MousePos);
+			 r = (int)(7- tmp.x);  c = (int) tmp.y;
+			Vec2 end = new Vec2((oX + c*dX)+0.60*dX, (oY+r*dY)+0.5*dY);
+			GLGraphics.renderArrow(start, end);
+		}
+		
+		
 		renderDraggingPiece(dX, dY); // render dragging piece last, so it render *over* all other textures.
 
-	}
-	
-	private void renderGraphics()
-	{
-		if (!mouseRightClick) return;
-		
-		if (MousePos != startDragPos)
-		{
-			glDisable(GL_TEXTURE_2D);
-			glPushMatrix();
-			glLoadIdentity();
-			//glEnable(GL_BLEND); // blend to remove ugly piece background
-			//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);		
-			
-
-			glLineWidth(175);
-			glBegin(GL_LINE_STRIP);	
-			//glColor4f(1f, 1f, 1f, 1f);
-			glVertex2d(startDragPos.x,startDragPos.y ); 
-			glVertex2d(MousePos.x, MousePos.y ); 
-			glEnd();
-			//glDisable(GL_BLEND);
-			glPopMatrix();
-			
-		}
 	}
 	
 	private Boolean draggedPiece(int r, int c)
@@ -411,8 +399,10 @@ public class BoardWindow extends GLWindow
 		glClearColor(0f, 0f, 0f, 1f);
 		
 		fixAspectRatio(w,h);		
+		
 		renderSquares(gl, (int) BoardDims.x, (int) BoardDims.y);
-		if (mouseRightClick) GLGraphics.renderArrow(startDragPos, MousePos);
+		
+		
 		
 	}
 
@@ -706,7 +696,7 @@ public class BoardWindow extends GLWindow
 	@Override
 	public void onMouseRightUp(Event e) {
 		mouseRightClick = false;
-		startDragPos.set(new Vec2(0,0));
+		//startDragPos.set(new Vec2(0,0));
 	}
 
 }
