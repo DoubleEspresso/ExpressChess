@@ -247,7 +247,7 @@ public class BoardWindow extends GLWindow
 		}		
 		
 		renderDraggingPiece(dX, dY); // render dragging piece last, so it render *over* all other textures.
-		renderGraphics();
+
 	}
 	
 	private void renderGraphics()
@@ -408,10 +408,11 @@ public class BoardWindow extends GLWindow
         
         glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
         glLoadIdentity();
-		glClearColor(1f, 1f, 1f, 1f);
+		glClearColor(0f, 0f, 0f, 1f);
 		
 		fixAspectRatio(w,h);		
 		renderSquares(gl, (int) BoardDims.x, (int) BoardDims.y);
+		if (mouseRightClick) GLGraphics.renderArrow(startDragPos, MousePos);
 		
 	}
 
