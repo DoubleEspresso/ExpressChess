@@ -247,18 +247,21 @@ public class BoardWindow extends GLWindow
 			}
 		}		
 		
+		
+		GLGraphics.renderPreviousArrows();		
 		if (mouseRightClick) 
 		{
 			Vec2 tmp = squareFromMouse(startDragPos);
 			int r = (int)(7- tmp.x); int c = (int) tmp.y;
-			Vec2 start = new Vec2((oX + c*dX)+0.60*dX, (oY+r*dY)+0.5*dY);
+			Vec2 start = new Vec2((oX + c*dX)+0.63*dX, (oY+r*dY)+0.5*dY);
 			tmp = squareFromMouse(MousePos);
 			 r = (int)(7- tmp.x);  c = (int) tmp.y;
-			Vec2 end = new Vec2((oX + c*dX)+0.60*dX, (oY+r*dY)+0.5*dY);
-			GLGraphics.renderArrow(start, end);
+			Vec2 end = new Vec2((oX + c*dX)+0.63*dX, (oY+r*dY)+0.5*dY);
+			
+			GLGraphics.storeArrowData(start, end, (float) (0.25*dX));
+			GLGraphics.renderArrow(start, end, (float) (0.25*dX));			
 		}
-		
-		
+
 		renderDraggingPiece(dX, dY); // render dragging piece last, so it render *over* all other textures.
 
 	}
@@ -475,6 +478,7 @@ public class BoardWindow extends GLWindow
 		}
 		else ActivePiece = null;
 		
+		if (ActivePiece != null) GLGraphics.clearArrows();
 	}
 
 	@Override
@@ -696,7 +700,14 @@ public class BoardWindow extends GLWindow
 	@Override
 	public void onMouseRightUp(Event e) {
 		mouseRightClick = false;
-		//startDragPos.set(new Vec2(0,0));
+		Vec2 ssq = squareFromMouse(startDragPos);
+		Vec2 esq = squareFromMouse(new Vec2(e.x, e.y));
+		if (ssq.x == esq.x && ssq.y == esq.y)
+		{
+			//GLGraphics.highlightSquare(t, o, d, r, c, 0);
+		}
+		
+		GLGraphics.storeArrow(GLGraphics.getStoredStart(), GLGraphics.getStoredEnd(), GLGraphics.getStoredWidth());
 	}
 
 }
