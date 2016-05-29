@@ -69,6 +69,11 @@ public class Vec2
 	  else return new Vec2(this.x/l, this.y/l);
    }   
 
+   public Boolean equals(Vec2 other)
+   {
+	   return (x == other.x && y == other.y);
+   }
+   
    public double dot(Vec2 v1 ) 
    {
 	   return this.x*v1.x + this.y*v1.y;
