@@ -5,9 +5,13 @@ import java.util.List;
 
 public class GLGraphics 
 {
+	// arrows
 	private static List<Arrow> arrows = null;
-	private static Arrow storage = new Arrow();
-
+	private static Arrow storedArrowData = new Arrow();
+	
+	// square highlights
+	private static List<Square> squares = null;
+	
 	private static class Arrow {
 		public Arrow() {}
 		public Arrow(Vec2 s, Vec2 e, float w) { start = s; end = e; width = w; }
@@ -16,24 +20,47 @@ public class GLGraphics
 		public float width;
 	}
 	
+	private static class Square {
+		public Square() {}
+		public Square(Vec2 o, Vec2 d, int r, int c, int type)
+		{
+			this.o = o; this.d = d; this.r = r; this.c = c; this.type = type;
+		}
+		public Vec2 o;
+		public Vec2 d;
+		public int r;
+		public int c;
+		public int type;
+	}
+	
 	public static void storeArrowData(Vec2 startPos, Vec2 endPos, float w)
 	{
-		storage.width = w; storage.start = startPos; storage.end = endPos;
+		storedArrowData.width = w; storedArrowData.start = startPos; storedArrowData.end = endPos;
 	}
 	
 	public static float getStoredWidth()
 	{
-		return storage.width;
+		return storedArrowData.width;
 	}
 	
 	public static Vec2 getStoredStart()
 	{
-		return storage.start;
+		return storedArrowData.start;
 	}
 	
 	public static Vec2 getStoredEnd()
 	{
-		return storage.end;
+		return storedArrowData.end;
+	}
+	
+	public static void storeSquare(Vec2 o, Vec2 d, int r, int c, int type)
+	{
+		if (squares == null) 
+		{
+			squares = new ArrayList<Square>();
+			squares.clear();
+		}
+		squares.add(new Square(o, d, r, c, type));
 	}
 	
 	public static void storeArrow(Vec2 startPos, Vec2 endPos, float w)
@@ -48,7 +75,11 @@ public class GLGraphics
 	
 	public static Boolean hasPreviousArrows() { return (arrows != null && arrows.size() > 0); }
 	
+	public static Boolean hasPreviousSquares() { return (squares != null && squares.size() > 0); }
+	
 	public static void clearArrows() { if (hasPreviousArrows()) arrows.clear(); }
+	
+	public static void clearSquares() { if (hasPreviousSquares()) squares.clear(); }
 	
 	public static void renderPreviousArrows()
 	{
@@ -60,40 +91,54 @@ public class GLGraphics
 		}
 	}
 	
-	public static void highlightSquare(Texture t, Vec2 o, Vec2 d, int r, int c, int type)
+	public static void renderPreviousSquareHighlights()
+	{
+		if (!hasPreviousSquares()) return;
+		
+		for (int j=0; j<squares.size(); ++j)
+		{
+			highlightSquare(squares.get(j).o, squares.get(j).d, squares.get(j).r, squares.get(j).c, squares.get(j).type );
+		}
+	}
+	
+	public static void highlightSquare(Vec2 o, Vec2 d, int r, int c, int type)
 	{
 		double oX = o.x; double oY = o.y;
 		double dX = d.x; double dY = d.y;
 		
+		// 2 triangles to make square
+		double x0 = oX + c*dX; double y0 = oY+r*dY;
+		double x1 = oX + (c+1)*dX; double y2 = oY + (r+1)*dY;
+
 		float[] colors = {0f, 0f, 0f, 0f};
 		
 		switch (type) {
 		case 0: // selection
-			colors = new float[]{0.2f, 0.6f, 0.6f, 0.6f };
+			colors = new float[]{0.25f, 0.9f, 0.25f, 0.4f };
 			break;
 		case 1: // check
-			colors = new float[]{0.8f, 0.3f, 0.3f, 0.6f };
+			colors = new float[]{0.8f, 0.3f, 0.3f, 0.4f };
 			break;
 		case 2: // capture (potential)
-			colors = new float[]{0.8f, 0.5f, 0.5f, 0.6f };
+			colors = new float[]{0.8f, 0.5f, 0.5f, 0.4f };
 			break;
 		}
-		
-		t.Bind();
+
 		glEnable(GL_BLEND); 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_TEXTURE_2D);
-		glBegin(GL_QUADS);
+		glBegin(GL_TRIANGLES);
 		glColor4f(colors[0], colors[1], colors[2], colors[3]);
-    	glTexCoord2f(0, 0); glVertex2d(oX + c*dX, oY+r*dY);
-    	glTexCoord2f(1, 0); glVertex2d(oX + (c+1)*dX, oY + r*dY);
-    	glTexCoord2f(1, 1); glVertex2d(oX + (c+1)*dX, oY + (r+1)*dY);
-    	glTexCoord2f(0, 1); glVertex2d(oX + c*dX, oY + (r+1)*dY);
+		glVertex2d(x0, y0); glVertex2d(x1, y0); glVertex2d(x1, y2);
+		glVertex2d(x0, y0); glVertex2d(x0, y2); glVertex2d(x1, y2);
     	glEnd();
+		glDisable(GL_BLEND);
+		glColor4f(1f, 1f, 1f, 1f);
 	}
 	
 	public static void renderArrow(Vec2 startPos, Vec2 endPos, float w)
-	{			
+	{		
+		if (startPos == null || endPos == null) return; 
 		double dy = endPos.y - startPos.y;
 		double dx = endPos.x - startPos.x;	
 		double theta = (dx < 0 ? Math.PI + Math.atan(dy/dx) : Math.atan(dy/dx)) ;

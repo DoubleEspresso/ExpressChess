@@ -47,6 +47,7 @@ public class BoardWindow extends GLWindow
 	UCIEngineHandler uciEngineHandler = null;
 	private Boolean mouseRightClick = false;
 	private Vec2 startDragPos = new Vec2(0,0);
+	private Boolean doSquareHighlight = false;
 	
 	public BoardWindow(Composite parent) 
 	{
@@ -236,6 +237,17 @@ public class BoardWindow extends GLWindow
 			}		
 		}	
 		
+		// right-click single square - highlighting
+		GLGraphics.renderPreviousSquareHighlights();
+		if (doSquareHighlight) 
+		{
+			Vec2 tmp = squareFromMouse(startDragPos);
+			int r = (int) (7 - tmp.x);
+			int c = (int) tmp.y;
+			GLGraphics.highlightSquare(new Vec2(oX, oY), new Vec2(dX, dY), r, c, 0);	
+			GLGraphics.storeSquare(new Vec2(oX, oY), new Vec2(dX, dY), r, c, 0);
+		}
+		
 		// render pieces after all squares are rendered .. else dragging pieces sometimes renders squares over the dragging piece
 		for (int r =0; r <8; ++r)
 		{
@@ -252,14 +264,20 @@ public class BoardWindow extends GLWindow
 		if (mouseRightClick) 
 		{
 			Vec2 tmp = squareFromMouse(startDragPos);
-			int r = (int)(7- tmp.x); int c = (int) tmp.y;
-			Vec2 start = new Vec2((oX + c*dX)+0.63*dX, (oY+r*dY)+0.5*dY);
-			tmp = squareFromMouse(MousePos);
-			 r = (int)(7- tmp.x);  c = (int) tmp.y;
-			Vec2 end = new Vec2((oX + c*dX)+0.63*dX, (oY+r*dY)+0.5*dY);
+			int r = (int) (7 - tmp.x);
+			int c = (int) tmp.y;
+			Vec2 start = new Vec2((oX + c * dX) + 0.63 * dX, (oY + r * dY) + 0.5 * dY);
+			Vec2 tmp2 = squareFromMouse(MousePos);
+			if (!tmp.equals(tmp2)) {
+				r = (int) (7 - tmp2.x);				
+				c = (int) tmp2.y;
+				if (r > 7 || r < 0) r = (r > 7 ? 7 : 0); // keep it on the board
+				if (c > 7 || c < 0) c = (c > 7 ? 7 : 0);
+				Vec2 end = new Vec2((oX + c * dX) + 0.63 * dX, (oY + r * dY) + 0.5 * dY);
+				GLGraphics.storeArrowData(start, end, (float) (0.25 * dX));
+				GLGraphics.renderArrow(start, end, (float) (0.25 * dX));
+			}
 			
-			GLGraphics.storeArrowData(start, end, (float) (0.25*dX));
-			GLGraphics.renderArrow(start, end, (float) (0.25*dX));			
 		}
 
 		renderDraggingPiece(dX, dY); // render dragging piece last, so it render *over* all other textures.
@@ -478,7 +496,14 @@ public class BoardWindow extends GLWindow
 		}
 		else ActivePiece = null;
 		
-		if (ActivePiece != null) GLGraphics.clearArrows();
+		if (ActivePiece != null)
+		{
+			GLGraphics.clearArrows();
+			startDragPos = new Vec2(0,0);
+			mouseRightClick = false;
+			GLGraphics.clearSquares();
+			doSquareHighlight = false;
+		}
 	}
 
 	@Override
@@ -493,11 +518,10 @@ public class BoardWindow extends GLWindow
 			toSq = 8*r + c;
 			if (position.isLegal(fromSq, toSq, movingPiece, movingColor, true))
 			{
-				System.out.println("..is legal");
 				// drop piece..handle all special move types
 				position.doMove(fromSq, toSq, movingPiece, movingColor);
 				// pawn is now sitting at "to" square
-				if (position.isPromotion())
+				if (position.isPromotion()) // TODO: fixme
 				{										
 					popupPromotionWindow(fromSq, toSq, movingPiece, movingColor);
 					fromSq = -1;
@@ -689,25 +713,30 @@ public class BoardWindow extends GLWindow
 	public void onMouseRightClick(Event e) {
 		
 		Vec2 v = new Vec2(e.x, e.y);
-		Vec2 p = squareFromMouse(v);
-
+		doSquareHighlight = false;
 		mouseRightClick = true;
 		startDragPos = new Vec2(v);
-		System.out.println("set mouse rightclick = true");
-
 	}
 
 	@Override
 	public void onMouseRightUp(Event e) {
 		mouseRightClick = false;
-		Vec2 ssq = squareFromMouse(startDragPos);
-		Vec2 esq = squareFromMouse(new Vec2(e.x, e.y));
-		if (ssq.x == esq.x && ssq.y == esq.y)
-		{
-			//GLGraphics.highlightSquare(t, o, d, r, c, 0);
-		}
 		
+		// check for square highlighting
+		Vec2 ssq = squareFromMouse(startDragPos);
+		Vec2 esq = squareFromMouse(MousePos);
+		if (ssq.equals(esq)) {
+			doSquareHighlight = true;		
+			refresh();
+		}
+
 		GLGraphics.storeArrow(GLGraphics.getStoredStart(), GLGraphics.getStoredEnd(), GLGraphics.getStoredWidth());
+	}
+	
+	@Override
+	public void onResize(int w, int h) 
+	{
+		
 	}
 
 }
