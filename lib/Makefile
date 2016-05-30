@@ -9,7 +9,7 @@ CFLAGS = -Wall -O3 -fomit-frame-pointer -fstrict-aliasing -fno-rtti -save-temps 
 CFLAGSD = -Wall -g -O3 -fomit-frame-pointer -fstrict-aliasing -fno-rtti -save-temps -std=gnu++11 $(INCS) 
 USERMACROS =
 
-SRCS = main.cpp globals.cpp magic.cpp move.cpp board.cpp zobrist.cpp book.cpp
+SRCS = main.cpp globals.cpp magic.cpp move.cpp board.cpp zobrist.cpp book.cpp pgnio.cpp
 
 OBJS = $(SRCS:.cpp=.o)
 OBJSCL = $(SRCSCL:.cpp=.o)

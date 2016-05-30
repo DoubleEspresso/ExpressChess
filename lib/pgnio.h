@@ -49,7 +49,7 @@ class pgn_io
     bool save(char * filename);
 
     bool parse_tags(std::string& line);
-    bool parse_moves(Board& b, BoardData& pd, std::string& line);
+    bool parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog);
 
     // given a san move - return the U16 encoded move
     U16 san_to_move(Board& b, std::string& s);
@@ -57,6 +57,7 @@ class pgn_io
     int to_square(std::string& s);
     U16 find_move_row(Board& b, int row, int to, int piece);
     U16 find_move_col(Board& b, int col, int to, int piece);
+    U16 find_move_promotion(Board& b, int pp, int to, int fp, bool isCapture);
     U16 find_move(Board& b, int to, int piece);
     
     // given a U16 encoded move, convert to proper SAN format.

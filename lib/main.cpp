@@ -3,7 +3,8 @@
 #include "globals.h"
 #include "magic.h"
 #include "zobrist.h"
-//#include "threads.h"
+#include "board.h"
+#include "pgnio.h"
 
 void parse_args(int argc, char ** argv);
 
@@ -40,7 +41,7 @@ int main(int argc, char ** argv)
 	//Threads.init();
 
 	// parse args and start working
-	if (argc > 1) parse_args(argc, argv);
+	if (argc >= 1) parse_args(argc, argv);
 	else printf("..nothing to do, exiting\n");
 
 	return EXIT_SUCCESS;
@@ -54,8 +55,17 @@ void parse_args(int argc, char* argv[])
   int testdepth = 0;
   for (int j = 0; j<argc; ++j)
     {
-      if (!strcmp(argv[j], "-test"))
+      if (!strcmp(argv[j], "-pgn"))
 	{
+	  Board b;
+	  std::istringstream fen(START_FEN);
+	  b.from_fen(fen);
+	  pgn_io pgn(argv[j+1]);	  
+	  if (!pgn.parse(b))
+	    {
+	      printf("..ERROR: failed to parse %s correctly\n", argv[j+1]);
+	    }
+
 	}
       else if (!strcmp(argv[j], "-match")) printf("..match mode\n");
       else if (!strcmp(argv[j], "-bench")) printf("..benchmark\n");

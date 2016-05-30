@@ -27,6 +27,7 @@ bool pgn_io::parse(Board& b)
     }
   
   std::string line; BoardData pd;
+  bool eog = false; int games = 0;
   while(std::getline(*ifile, line))
     {
       // parse line
@@ -34,23 +35,30 @@ bool pgn_io::parse(Board& b)
       else if (line.size() > 0 && line != "\n") 
 	{
 	  //printf("..found line: %s\n", line.c_str());
-	  if (!parse_moves(b, pd, line)) return false;
+	  if (!parse_moves(b, pd, line, eog)) return false;
+	  if (eog)
+	    {
+	      eog = false;
+	      b.clear();
+	      std::istringstream fen(START_FEN);
+	      b.from_fen(fen); ++games;    
+	    }
 	}      
     }
-  printf("\n--- FINAL POSITION --- \n");
-  b.print();
-  
+  printf("..finished, %d games parsed successfully.", games);
   return true;
 }
 
-bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line)
+bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 {
   std::stringstream ss(line);
   std::string token;
-  bool comment = false;
-  int move_nb = 0; // conventionally starts with 1.
+  bool comment = false; std::string comments = "";
+  int move_nb = 0; 
+  std::vector<std::string> comment_list;
   while(ss >> std::skipws >> token )
     {
+
       if (token.find("{") != std::string::npos)
 	{
 	  comment = true;
@@ -58,18 +66,45 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line)
       else if (token.find("}") != std::string::npos)
 	{
 	  comment = false;
+	  comments += token; 
+	  comment_list.push_back(comments); 
+	  comments = "";
 	  continue;
 	}
-      if (comment) continue;
-
-      // check for move number
-      if ( token.find(".") != std::string::npos)
+      if (comment) 
 	{
-	  if (std::isdigit(token[0])) continue;
+	  comments += token;
+	  continue;
+	}
+            
+      // check move nb formatting (some files record moves as 1. e4, others as 1.e4)
+      int idx = -1;
+      if ( (idx = token.find(".")) != std::string::npos)
+	{
+	  std::string res = "";
+	  while(token[idx])
+	    {	      
+	      if (token[idx] != '.') // skip the '.' 
+		{
+		  res += token[idx];
+		}
+	      ++idx;
+	    }
+	  token = res; 
+	  if (res == "") continue;
+	}
+
+      // check end of game      
+      if (token == "1/2-1/2" || token == "1-0" || token == "0-1")
+	{	  
+	  //printf("..end of game, %s",(token == "1/2-1/2" ? "draw" : token == "1-0" ? "white win" : "black win"));
+	  //b.print();	  
+	  eog = true;
+	  return true;
 	}
       else 
 	{
-	  // strip move of all notations, checks/mates, conver to lowercase
+	  // strip move of all notations, checks/mates
 	  pgn_strip(token);
 	  U16 m = san_to_move(b, token);
 	  if (m != 0) 
@@ -94,6 +129,7 @@ U16 pgn_io::san_to_move(Board& b, std::string& s)
   int len = s.size();
   int i = s.size()-1;
   int to = -1; 
+  bool isPromotion = false; int promotionType = 0;
 
   // check castle move
   if (s == "O-O" || s == "O-O-O")
@@ -102,16 +138,27 @@ U16 pgn_io::san_to_move(Board& b, std::string& s)
       else to = (b.whos_move() == WHITE ? C1 : C8);
       return find_move(b, to, int(KING));
     }
+  // check promotion moves
+  else if (s[i] == 'Q' || s[i] == 'R' || s[i] == 'B' || s[i] == 'N')
+    {
+      promotionType = (s[i] == 'N' ? 1 : s[i] == 'B' ? 2 : s[i] == 'R' ? 3 : 4);
+
+      i-=1; if (s[i]=='=') i-=1;      
+      s = s.substr(0,len-2); // remove the "=q" piece
+      len -= 2;
+      to = to_square(s);
+      isPromotion = true;
+    }
   else to = to_square(s); // todo: catch shorthands like ed for exd4 etc.
  
-  // normal pawn moves (a4 etc. which are len 2)
-  if (len <= 2 && to > 0)
+  // normal pawn moves and normal promotion moves (non-capture) (a4 etc. which are len 2)
+  if (len <= 2 && to >= 0)
     {
       //printf("..dbg in find move %s to = %d\n",s.c_str(), to);
-      return find_move(b, to, int(PAWN));
+      return (isPromotion ? find_move_promotion(b, promotionType, to, int(PAWN), false) : find_move(b, to, int(PAWN)));
     }
   
-  // either piece move like ra4 or pawn capture like axb4 etc.
+  // either piece move like ra4 or pawn capture like axb4 or promotion capture like axb8=q
   i -= 2;
   char c = s[i];
   
@@ -132,10 +179,11 @@ U16 pgn_io::san_to_move(Board& b, std::string& s)
   // piece
   int piece = -1;
 
+  //printf("move = %s, i = %d\n", s.c_str(), i);
   if (i >= 0)
     {
       piece = parse_piece(s[i]);      
-      //printf("..piece = %d for move %s\n", piece, s.c_str());
+      //printf("..piece = %d for move %s, promotion = %d\n", piece, s.c_str(), isPromotion);
     }
   if (piece < 0) 
     {
@@ -149,9 +197,10 @@ U16 pgn_io::san_to_move(Board& b, std::string& s)
     }
 
   // return move
-  if (row != -1) return find_move_row(b, row, to, piece);
-  else if (col != -1 ) return find_move_col(b, col, to, piece);
-  else return find_move(b, to, piece);
+  //printf("row=%d, col=%d\n", row, col);
+  if (row != -1) return (isPromotion ? find_move_promotion(b, promotionType, to, int(PAWN), true) : find_move_row(b, row, to, piece));
+  else if (col != -1 ) return (isPromotion ? find_move_promotion(b, promotionType, to, int(PAWN), true) : find_move_col(b, col, to, piece));
+  else return (isPromotion ? find_move_promotion(b, promotionType, to, int(PAWN), true) : find_move(b, to, piece) );
 
   return 0;
 }
@@ -163,7 +212,7 @@ U16 pgn_io::find_move(Board& b, int to, int piece)
   for (MoveGenerator mvs(b); !mvs.end(); ++mvs)
     {
       U16 m = mvs.move();     
-      int p = b.piece_on(get_from(m));
+      int p = b.piece_on(get_from(m));      
       if (get_to(mvs.move()) == to && (piece == p)) candidates.push_back(m);
     }  
 
@@ -196,6 +245,21 @@ U16 pgn_io::find_move_col(Board& b, int col, int to, int piece)
   return (candidates.size() == 1 ? candidates[0] : 0);  
 }
 
+U16 pgn_io::find_move_promotion(Board& b, int pp, int to, int fp, bool isCapture)
+{
+  std::vector<U16> candidates;
+  for (MoveGenerator mvs(b); !mvs.end(); ++mvs)
+    {
+      U16 m = mvs.move();
+      int type = int((m & 0xf000) >> 12);
+      if (isCapture) type -= 4;
+      int f = get_from(m);
+      int p = b.piece_on(f);
+      if (get_to(mvs.move()) == to && (fp == p) && (pp == type)) candidates.push_back(m);
+    }  
+  return (candidates.size() == 1 ? candidates[0] : 0);  
+}
+
 int pgn_io::to_square(std::string& s)
 {
   int len = s.size();
@@ -214,7 +278,7 @@ int pgn_io::to_square(std::string& s)
 int pgn_io::parse_piece(char& c)
 {
   if (c == 'o' || c == '0') return -1; // castle move
-
+  
   int i=0; // san piece array starts at 7 for uppercase pieces (non pawn) 
   while(SanPiece[i] && i < 7)
     {
