@@ -60,14 +60,21 @@ void parse_args(int argc, char* argv[])
 	  Board b;
 	  std::istringstream fen(START_FEN);
 	  b.from_fen(fen);
-	  pgn_io pgn(argv[j+1], "testdb.bin");	  
+	  pgn_io pgn(argv[j+1], "testdb.bin", 100);	  
 	  if (!pgn.parse(b))
 	    {
 	      printf("..ERROR: failed to parse %s correctly\n", argv[j+1]);
 	    }
 
 	}
-      else if (!strcmp(argv[j], "-match")) printf("..match mode\n");
+      else if (!strcmp(argv[j], "-test"))
+	{
+	  Board b;
+	  std::istringstream fen(argv[j+1]);
+	  pgn_io pgn("testdb.bin");
+	  std::string move = pgn.find(argv[j+1]);
+	  printf("...found move %s\n",move.c_str());
+	}
       else if (!strcmp(argv[j], "-bench")) printf("..benchmark\n");
       else if (!strcmp(argv[j], "-usett")) printf("..set option tt\n");
       else if (!strcmp(argv[j], "-ttsizekb")) printf("..set option ttsizekb\n");

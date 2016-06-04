@@ -1,6 +1,27 @@
+#include <algorithm>
 #include "pgnio.h"
 
-pgn_io::pgn_io(char * pgn_fname, char * db_fname) : ofile(0), ifile(0), data(0), book(0)
+  // initial position
+
+struct
+{
+  bool operator()(const pgn_data& x, const pgn_data& y) { return x.key > y.key; }
+} GreaterThan;
+
+pgn_io::pgn_io(char * db_fname) :
+    ofile(0), ifile(0), book(0), data(0),
+    nb_elements(0), size_bytes(0)
+{
+  if (db_fname)
+    {
+      ofile = new std::fstream(db_fname, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
+    }
+  book = new Book();
+}
+
+pgn_io::pgn_io(char * pgn_fname, char * db_fname, size_t size_mb) :
+  ofile(0), ifile(0), book(0), data(0),
+  nb_elements(0), size_bytes(0)
 {
   if (pgn_fname)
     {
@@ -9,18 +30,32 @@ pgn_io::pgn_io(char * pgn_fname, char * db_fname) : ofile(0), ifile(0), data(0),
     }
   if (db_fname)
     {
-      ofile = new std::ofstream(db_fname, std::ios::binary);
+      ofile = new std::fstream(db_fname, std::ios::in | std::ios::out | std::ios::binary | std::fstream::trunc);
     }
-  data = new pgn_data();
+  init_db(size_mb);
   book = new Book();
 }
 
 pgn_io::~pgn_io()
 {
-  if (ofile) { delete ofile; ofile = 0; }
-  if (ifile) { ifile->close(); delete ifile; ifile = 0; }
-  if (data)  { delete data; data = 0; }
-  if (book)  { delete book; book = 0; }
+  //if (ofile) { delete ofile; ofile = 0; }
+  //if (ifile) { ifile->close(); delete ifile; ifile = 0; }
+  //if (data)  { delete data; data = 0; }
+  //if (book)  { delete book; book = 0; }
+}
+
+bool pgn_io::init_db(size_t size_mb)
+{
+  size_t kb = 1024;
+  size_t mb = 10 * kb;
+  //size_t size_mb = 10 * size_mb; // size in bytes
+  nb_elements  = nearest_power_of_2(size_mb*mb) / sizeof(pgn_data);
+  size_bytes = nb_elements * sizeof(pgn_data);
+  printf("..dbg size_bytes = %d\n", size_bytes);
+  if (!data && (data = new pgn_data[nb_elements]()))
+    {
+      printf("..initialized db file: size %3.1f mb, %d elts\n", float(size_bytes) / float(mb), nb_elements);
+    }
 }
 
 bool pgn_io::parse(Board& b)
@@ -31,6 +66,9 @@ bool pgn_io::parse(Board& b)
       printf("..ERROR: failed to open pgn file, check filename.\n");
       return false;
     }
+
+
+  for (int j=0; j < TAG_NB; ++j) tags[j] = "";  
   
   std::string line; BoardData pd;
   bool eog = false; int games = 0;
@@ -47,16 +85,27 @@ bool pgn_io::parse(Board& b)
 	  if (!parse_moves(b, pd, line, eog)) return false;
 	  if (eog)
 	    {
+	      // do we have enough space to write a new entry
+	      if (sizeof(data) >= size_bytes-1024*100)
+		{
+		  printf("..end pgn parse, space full\n");
+		  printf("..%d games parsed successfully.", games);
+		  write();
+		  return true;
+		}
+	      
 	      eog = false;
 	      b.clear();
 	      std::istringstream fen(START_FEN);
-	      b.from_fen(fen); ++games;    
+	      b.from_fen(fen); ++games;
+	      for (int j=0; j < TAG_NB; ++j) tags[j] = "";
+	      
 	    }
 	}      
     }
-  for (int j=0; j<9; ++j)
-    printf("header tag --> %s\n", data->tags[j].c_str());
-
+  //for (int j=0; j<9; ++j)
+  //printf("header tag --> %s\n", data->tags[j].c_str());
+  write();
   printf("..finished, %d games parsed successfully.", games);
   return true;
 }
@@ -78,57 +127,52 @@ bool pgn_io::parse_header_tag(std::string& line)
 	  pgn_strip(token);
 	  for (int j=0; j<token.size(); ++j) token[j] = tolower(token[j]);
 	  key += " " + token;
-	}
+	}      
       if (tag == "event")
 	{
-	  data->tags[EVENT] = key; 
+	  tags[EVENT] = key; 
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
 	}
       else if (tag == "site")
 	{
-	  data->tags[SITE] = key;
+	  tags[SITE] = key;
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
 	}
       else if (tag == "date")
 	{	  
-	  data->tags[DATE] = key;
+	  tags[DATE] = key;
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
 	}
       else if (tag == "round")
 	{
-	  data->tags[ROUND] = key;
+	  tags[ROUND] = key;
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
 	}
       else if (tag == "white")
 	{
-	  data->tags[TWHITE] = key;
+	  tags[TWHITE] = key;
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
 	}
       else if (tag == "black")
 	{
-	  data->tags[TBLACK] = key;
+	  tags[TBLACK] = key;
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
 	}
       else if (tag == "whiteelo")
 	{
-	  data->tags[WELO] = key;
+	  tags[WELO] = key;
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
 	}
       else if (tag == "blackelo")
 	{
-	  data->tags[BELO] = key;
+	  tags[BELO] = key;
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
 	}
       else if (tag == "result")
 	{
-	  data->tags[RESULT] = key;
+	  tags[RESULT] = key;
 	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
-	}
-      for (int j=0; j<TAG_NB; ++j)
-	{
-	  //std::cout << j << " " << data->tags[j] << std::endl;
-	}
-      
+	}      
     }
   return true;
 }
@@ -202,11 +246,15 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	  // strip move of all notations, checks/mates
 	  pgn_strip(token);
 	  U16 m = san_to_move_16(b, token);
-	  data->moves.push_back(to_move12(m)); // stripped move
 	  if (m != 0) 
 	    {
+	      book->compute_key(b.to_fen().c_str());
+	      U64 k = book->key();
 	      b.do_move(pd, m);
-	      data->pos_keys.push_back(book->compute_key(b.to_fen().c_str()));
+
+	      int idx = (nb_elements-1) & k;
+	      data[idx].key = k;
+	      data[idx].moves.push_back(encode_move(m));
 	    }
 	  else 
 	    {
@@ -216,17 +264,29 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	    }
 	}
     } // finished parsing all moves, insert indices/data into binary file (?)
-  insert_in_db();
   return true;
 }
 
-U12 pgn_io::to_move12(U16& m)
+U16 pgn_io::encode_move(U16& m)  // insert the game result into the move
 {
-  U12 m12;
+  U16 em;
+  int type = int((m & 0xf000) >> 12);
+  int pp = 0;
+  // normal promotion moves
+  if (type != MOVE_NONE && type <= PROMOTION)
+    {
+      pp = type;
+    }
+  // promotion captures
+  if (type > PROMOTION && type <= PROMOTION_CAP)
+    {
+      pp = Piece(type - 4);      
+    }
   int t = get_to(m);
   int f = get_from(m);
-  m12.move = t|f;
-  return m12;
+  int r = (tags[RESULT] == "1-0" ? 1 : tags[RESULT] == "0-1" ? 2 : 0); // 2 bits
+  em = (f | (t << 6) | r << 12 | pp << 14);
+  return em;
 }
 
 // note: returns 0 on error!
@@ -413,10 +473,63 @@ void pgn_io::pgn_strip(std::string& move)
   move = result;
 }
 
-bool pgn_io::insert_in_db()
+std::string pgn_io::find(const char * fen)
+{
+  if (!ofile) return "";
+  if (!book->compute_key(fen)) return "";
+  U64 k = book->key();
+  
+  printf("..computed key %lx\n", k);
+  size_t offset = 0; size_t sz = ofile->tellg();
+  
+  //offset = sz / 2;
+  db_entry * e = new db_entry();
+  ofile->seekg(offset);
+  ofile->read( (char*) e, sizeof(db_entry));
+
+  printf("..read key %lx @ %d\n", e->key, offset);
+  
+  while (e->key != k && offset < sz - 1)
+    {
+      offset += sizeof(db_entry);
+      //else offset = offset + (sz - offset)/2;
+      ofile->seekg(offset);
+      ofile->read((char*) e, sizeof(db_entry));
+      printf("..read key %lx @ %d\n", e->key, offset);
+      //if (e->key == 0) break;
+    }
+  if (e->key == k)
+    {
+      printf("..found it!\n");
+      return SanSquares[get_from(e->move)] + SanSquares[get_to(e->move)];
+    }
+  else printf("..nothing found\n");
+  return "";
+}
+
+bool pgn_io::write()
 {
   if (!ofile || !data) return false;
-  
+  printf("..writing to db file\n");
+  // sort data on position keys  
+  std::sort(data, data + nb_elements, GreaterThan);
+  size_t offset = 0;
+ 
+  for (int j=0; j<nb_elements; ++j)
+    {
+      db_entry e;
+      e.key = data[j].key;
+      for (int m=0; m<data[j].moves.size(); ++m)
+	{
+	  e.move = data[j].moves[m];
+	  //printf("..writing %ull, %d @ %d\n", e.key, e.move, offset);
+	  ofile->seekp(offset);
+	  ofile->write((char*)&e, sizeof(e));
+	  offset += sizeof(e);
+	}            
+    }
+  printf("..finished writing to db file\n");
+  ofile->close();
   
   return true;
 }

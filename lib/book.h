@@ -40,6 +40,7 @@ class Book
 
   // entry management
   void init_entry();
+  U64 key() {return e->key;}
   
 };
 
