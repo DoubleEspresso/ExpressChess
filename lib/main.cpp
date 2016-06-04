@@ -60,7 +60,7 @@ void parse_args(int argc, char* argv[])
 	  Board b;
 	  std::istringstream fen(START_FEN);
 	  b.from_fen(fen);
-	  pgn_io pgn(argv[j+1]);	  
+	  pgn_io pgn(argv[j+1], "testdb.bin");	  
 	  if (!pgn.parse(b))
 	    {
 	      printf("..ERROR: failed to parse %s correctly\n", argv[j+1]);

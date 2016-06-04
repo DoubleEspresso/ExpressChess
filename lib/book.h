@@ -32,7 +32,7 @@ class Book
   
   // load from fen and keys computation
   void update_piece_key(U64& k, char& c, int s, int (&bps)[8], int (&wps)[8]);
-  bool compute_key(char * fen);
+  bool compute_key(const char * fen);
 
   // binary file search/creation
   bool search();

@@ -1,13 +1,18 @@
 #include "pgnio.h"
 
-pgn_io::pgn_io(char * filename) : ofile(0), ifile(0), data(0)
+pgn_io::pgn_io(char * pgn_fname, char * db_fname) : ofile(0), ifile(0), data(0), book(0)
 {
-  if (filename)
+  if (pgn_fname)
     {
       ifile = new std::ifstream();
-      ifile->open(filename, std::ifstream::in);
+      ifile->open(pgn_fname, std::ifstream::in);
+    }
+  if (db_fname)
+    {
+      ofile = new std::ofstream(db_fname, std::ios::binary);
     }
   data = new pgn_data();
+  book = new Book();
 }
 
 pgn_io::~pgn_io()
@@ -15,6 +20,7 @@ pgn_io::~pgn_io()
   if (ofile) { delete ofile; ofile = 0; }
   if (ifile) { ifile->close(); delete ifile; ifile = 0; }
   if (data)  { delete data; data = 0; }
+  if (book)  { delete book; book = 0; }
 }
 
 bool pgn_io::parse(Board& b)
@@ -31,7 +37,10 @@ bool pgn_io::parse(Board& b)
   while(std::getline(*ifile, line))
     {
       // parse line
-      if (line.find("[") != std::string::npos || line.find("]") != std::string::npos) continue; // parse game tag if [ is first char.. ?
+      if (line.find("[") != std::string::npos || line.find("]") != std::string::npos) 
+	{
+	  parse_header_tag(line);
+	}
       else if (line.size() > 0 && line != "\n") 
 	{
 	  //printf("..found line: %s\n", line.c_str());
@@ -45,8 +54,94 @@ bool pgn_io::parse(Board& b)
 	    }
 	}      
     }
+  for (int j=0; j<9; ++j)
+    printf("header tag --> %s\n", data->tags[j].c_str());
+
   printf("..finished, %d games parsed successfully.", games);
   return true;
+}
+
+bool pgn_io::parse_header_tag(std::string& line)
+{
+  std::stringstream ss(line);
+  std::string token;
+  while (ss >> std::skipws >> token)
+    {
+      std::string tag = "";
+      std::string key = "";
+      pgn_strip(token);
+      for (int j=0; j<token.size(); ++j) token[j] = tolower(token[j]);
+
+      tag += token;
+      while (ss >> std::skipws >> token)
+	{
+	  pgn_strip(token);
+	  for (int j=0; j<token.size(); ++j) token[j] = tolower(token[j]);
+	  key += " " + token;
+	}
+      if (tag == "event")
+	{
+	  data->tags[EVENT] = key; 
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      else if (tag == "site")
+	{
+	  data->tags[SITE] = key;
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      else if (tag == "date")
+	{	  
+	  data->tags[DATE] = key;
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      else if (tag == "round")
+	{
+	  data->tags[ROUND] = key;
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      else if (tag == "white")
+	{
+	  data->tags[TWHITE] = key;
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      else if (tag == "black")
+	{
+	  data->tags[TBLACK] = key;
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      else if (tag == "whiteelo")
+	{
+	  data->tags[WELO] = key;
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      else if (tag == "blackelo")
+	{
+	  data->tags[BELO] = key;
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      else if (tag == "result")
+	{
+	  data->tags[RESULT] = key;
+	  //std::cout << FNV_hash(key.c_str(), key.size()) << std::endl;
+	}
+      for (int j=0; j<TAG_NB; ++j)
+	{
+	  //std::cout << j << " " << data->tags[j] << std::endl;
+	}
+      
+    }
+  return true;
+}
+
+unsigned int pgn_io::FNV_hash(const char * key, int len)
+{
+  unsigned int h = 2166136261;
+  int i;
+  
+  for (i = 0; i < len; i++)
+    h = (h*16777619) ^ key[i];
+  
+  return h;
 }
 
 bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
@@ -94,7 +189,7 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	  if (res == "") continue;
 	}
 
-      // check end of game      
+      // check end of game, todo: handling various spacings 
       if (token == "1/2-1/2" || token == "1-0" || token == "0-1")
 	{	  
 	  //printf("..end of game, %s",(token == "1/2-1/2" ? "draw" : token == "1-0" ? "white win" : "black win"));
@@ -106,10 +201,12 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	{
 	  // strip move of all notations, checks/mates
 	  pgn_strip(token);
-	  U16 m = san_to_move(b, token);
+	  U16 m = san_to_move_16(b, token);
+	  data->moves.push_back(to_move12(m)); // stripped move
 	  if (m != 0) 
 	    {
 	      b.do_move(pd, m);
+	      data->pos_keys.push_back(book->compute_key(b.to_fen().c_str()));
 	    }
 	  else 
 	    {
@@ -118,12 +215,22 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	      return false;
 	    }
 	}
-    }
+    } // finished parsing all moves, insert indices/data into binary file (?)
+  insert_in_db();
   return true;
 }
 
+U12 pgn_io::to_move12(U16& m)
+{
+  U12 m12;
+  int t = get_to(m);
+  int f = get_from(m);
+  m12.move = t|f;
+  return m12;
+}
+
 // note: returns 0 on error!
-U16 pgn_io::san_to_move(Board& b, std::string& s)
+U16 pgn_io::san_to_move_16(Board& b, std::string& s)
 {
   // moving backward through SAN string..
   int len = s.size();
@@ -296,9 +403,20 @@ void pgn_io::pgn_strip(std::string& move)
   std::string result = "";
   for (int j=0; j<move.size(); ++j)
     {
-      if (move[j] == '!' || move[j] == '?' || move[j] == '+' || move[j] == '#') continue;
+      if (move[j] == '!' || move[j] == '?' || 
+	  move[j] == '+' || move[j] == '#' ||
+	  move[j] == '[' || move[j] == ']' ||
+	  move[j] == '"') continue;
       //result += tolower(move[j]); // not safe to convert to lowercase (bxa4 and Bxa4 for example)
       result += move[j];
     }
   move = result;
+}
+
+bool pgn_io::insert_in_db()
+{
+  if (!ofile || !data) return false;
+  
+  
+  return true;
 }

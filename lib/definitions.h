@@ -115,6 +115,8 @@ const std::string SanSquares[64] =
 	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8"
 };
 
+const std::string SanCols = "abcdefgh";
+
 enum Rows
 {
 	ROW1, ROW2, ROW3, ROW4,

@@ -25,7 +25,7 @@ int Book::piece_idx(int type, int color, int s)
   return 64 * type + 8 * r + c;
 }
 
-bool Book::compute_key(char* fen)
+bool Book::compute_key(const char* fen)
 {
   U64 piece_key = 0ULL;
   int len = strlen(fen);

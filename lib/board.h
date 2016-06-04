@@ -72,7 +72,7 @@ public:
 
 	// position setup/related
 	void from_fen(std::istringstream& is);
-	//void to_fen();
+	std::string to_fen();
 	//void from_moves(std::vector<std::string> mvs);
 	void clear();
 	void set_piece(char& c, int s);
