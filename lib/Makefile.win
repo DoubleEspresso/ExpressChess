@@ -1,57 +1,37 @@
 # Makefile template for shared library
 
-INCS = -I"..\external\libjpeg\src" -I"..\external\math\fftw\inc" -I"..\external\libtiff\inc"
 LD = -link 
 LDFLAGS = /dll /FORCE:MULTIPLE /LTCG
-
-FFTW_LIB = "..\external\math\fftw\lib64\libfftw3-3.lib" 
-TIFF_LIB = "..\external\libtiff\lib64\libtiff.lib"
-JPEG_LIB = "..\external\libjpeg\lib64\jpeg.lib"
-LIBS = $(FFTW_LIB) $(TIFF_LIB) $(JPEG_LIB)
 CLFLAGS = /MD
+LIBS =
+INCS =
 
 TARGET_EXE = \
-	debug.exe
-
-TARGET_DLL = \
-	lib 
-
-lib: \
-		image.obj \
-		image_jpeg.obj \
-		stringutils.obj \
-		image_tiff.obj \
-		imlib_win32DLL.obj
-		$(LD) $(LDFLAGS) \
-		-subsystem:console -out:libimage.dll \
-		image.obj \
-		image_jpeg.obj \
-		stringutils.obj \
-		image_tiff.obj \
-		imlib_win32DLL.obj \
-		$(LIBS)
+	hedwig-polyglot.exe
 		
-debug.exe: \
+hedwig-polyglot.exe: \
 		main.obj \
-		image.obj \
-		image_jpeg.obj \
-		stringutils.obj \
-		image_tiff.obj
+		globals.obj \
+		magic.obj \
+		move.obj \
+		board.obj \
+		zobrist.obj \
+		book.obj \
+		pgnio.obj \
 		$(LD) /FORCE:MULTIPLE \
 		-subsystem:console -out:$@ \
 		main.obj \
-		image.obj \
-		image_jpeg.obj \
-		stringutils.obj \
-		image_tiff.obj \
+		globals.obj \
+		magic.obj \
+		move.obj \
+		board.obj \
+		zobrist.obj \
+		book.obj \
+		pgnio.obj \
 		$(LIBS)
 
 #add definitions here as needed
-all: debug.exe lib clean
-
-debug: debug.exe clean
-
-libs: lib clean
+all: hedwig-polyglot.exe clean
 
 .cpp.obj:
 	cl -c $(CLFLAGS) $(INCS) $*.cpp

@@ -515,19 +515,21 @@ std::string pgn_io::find(const char * fen)
   size_t offset = 0; size_t sz = ofile->tellg();
   db_entry * e = new db_entry();
   size_t low = 0; size_t high = sz / sizeof(db_entry); 
-
+  //printf("struct size = %lu bytes, high = %lu\n", sizeof(db_entry), high);
   while (low < high)
     {
       offset = low + floor((high - low)/2);
       ofile->seekg(offset*sizeof(db_entry));
-      ofile->read((char*) e, sizeof(db_entry));
+      ofile->read(( char* ) e, sizeof(db_entry));
       
       if (k < e->key)
 	{
+	  //printf("(k < key) = %lu %lu, low(%lu), high(%lu), offset(%lu)\n", k, e->key, low, high, offset);
 	  low = offset + 1;
 	}
       else if (k > e->key)
 	{
+	  //printf("(k > key) = %lu %lu, low(%lu), high(%lu), offset(%lu)\n", k, e->key, low, high, offset);
 	  high = offset - 1;
 	}
       else if (k == e->key)

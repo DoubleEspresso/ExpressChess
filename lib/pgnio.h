@@ -22,7 +22,8 @@ struct pgn_data
   std::vector<U16> moves;   
 };
 
-struct db_entry
+struct __attribute__ ((packed))
+db_entry
 {
   U64 key;
   U16 move;

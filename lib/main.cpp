@@ -73,7 +73,8 @@ void parse_args(int argc, char* argv[])
 	  printf("..finding %s\n", argv[j+1]);
 	  Board b;
 	  std::istringstream fen(argv[j+1]);
-	  pgn_io pgn("/home/mjg/java-workspace-mars/ExpressChess/lib/testdb.bin");
+	  //pgn_io pgn("/home/mjg/java-workspace-mars/ExpressChess/lib/testdb.bin");
+	  pgn_io pgn("/home/mjg/java-workspace/java-workspace-mars/ExpressChess/lib/testdb.bin");
 	  pgn.find(argv[j+1]);
 	}
       else if (!strcmp(argv[j], "-testfen")) 
