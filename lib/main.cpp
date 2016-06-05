@@ -42,7 +42,7 @@ int main(int argc, char ** argv)
   //Threads.init();
   
   // parse args and start working
-  if (argc >= 1) parse_args(argc, argv);
+  if (argc > 1) parse_args(argc, argv);
   else printf("..nothing to do, exiting\n");
   
   return EXIT_SUCCESS;
@@ -70,9 +70,10 @@ void parse_args(int argc, char* argv[])
 	}
       else if (!strcmp(argv[j], "-find"))
 	{
+	  printf("..finding %s\n", argv[j+1]);
 	  Board b;
 	  std::istringstream fen(argv[j+1]);
-	  pgn_io pgn("testdb.bin");
+	  pgn_io pgn("/home/mjg/java-workspace-mars/ExpressChess/lib/testdb.bin");
 	  pgn.find(argv[j+1]);
 	}
       else if (!strcmp(argv[j], "-testfen")) 

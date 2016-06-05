@@ -790,34 +790,34 @@ bool Board::can_castle(U16 cr)
 
 void Board::print()
 {
-	for (int r = ROW8; r >= ROW1; r--)
+  for (int r = ROW8; r >= ROW1; r--)
+    {
+      printf("   +---+---+---+---+---+---+---+---+\n");
+      printf(" %d ", r + 1);
+      for (int c = COL1; c <= COL8; c++)
 	{
-		printf("   +---+---+---+---+---+---+---+---+\n");
-		printf(" %d ", r + 1);
-		for (int c = COL1; c <= COL8; c++)
+	  int s = 8 * r + c;
+	  bool occupied = false;
+	  
+	  for (int p = PAWN; p <= KING; p++)
+	    {
+	      if (U64(s) & pieces[WHITE][p])
 		{
-			int s = 8 * r + c;
-			bool occupied = false;
-
-			for (int p = PAWN; p <= KING; p++)
-			{
-				if (U64(s) & pieces[WHITE][p])
-				{
-					std::cout << "|" << "(" << SanPiece[p] << ")";
-					occupied = true;
-				}
-				if (U64(s) & pieces[BLACK][p])
-				{
-					std::cout << "| " << SanPiece[p + 6] << " ";
-					occupied = true;
-				}
-			}
-			if (!occupied) std::cout << "|   ";
+		  std::cout << "|" << "(" << SanPiece[p] << ")";
+		  occupied = true;
 		}
-		std::cout << "|\n";
+	      if (U64(s) & pieces[BLACK][p])
+		{
+		  std::cout << "| " << SanPiece[p + 6] << " ";
+		  occupied = true;
+		}
+	    }
+	  if (!occupied) std::cout << "|   ";
 	}
-	printf("   +---+---+---+---+---+---+---+---+\n");
-	printf("     a   b   c   d   e   f   g   h\n");
+      std::cout << "|\n";
+    }
+  printf("   +---+---+---+---+---+---+---+---+\n");
+  printf("     a   b   c   d   e   f   g   h\n");
 }
 
 U64 Board::pinned()
@@ -903,50 +903,54 @@ void Board::set_piece(char& c, int s)
 
 void Board::move_piece(int c, int p, int idx, int frm, int to)
 {
-	square_of_arr[c][p][idx] = to;
-	piece_on_arr[to] = p;
-	piece_on_arr[frm] = PIECE_NONE;
-	piece_index[c][p][frm] = 0;
-	piece_index[c][p][to] = idx;
-	// zobrist keys
-	position->pKey ^= (Zobrist::piece_rands(frm, c, p) | Zobrist::piece_rands(to, c, p));
-	
-	if (p == PAWN)
-	{
-		position->pawnKey ^= (Zobrist::piece_rands(frm, c, p) | Zobrist::piece_rands(to, c, p));
-	}
+  color_on_arr[frm] = COLOR_NONE;
+  color_on_arr[to] = c;
+  square_of_arr[c][p][idx] = to;
+  piece_on_arr[to] = p;
+  piece_on_arr[frm] = PIECE_NONE;
+  piece_index[c][p][frm] = 0;
+  piece_index[c][p][to] = idx;
+  // zobrist keys
+  position->pKey ^= (Zobrist::piece_rands(frm, c, p) | Zobrist::piece_rands(to, c, p));
+  
+  if (p == PAWN)
+    {
+      position->pawnKey ^= (Zobrist::piece_rands(frm, c, p) | Zobrist::piece_rands(to, c, p));
+    }
 }
 
 void Board::remove_piece(int c, int p, int s)
 {
-	int tmp_idx = piece_index[c][p][s];
-	int max_idx = number_of_arr[c][p];
-	int tmp_sq = square_of_arr[c][p][max_idx];
-	square_of_arr[c][p][tmp_idx] = square_of_arr[c][p][max_idx];
-	square_of_arr[c][p][max_idx] = SQUARE_NONE;
-	piece_index[c][p][tmp_sq] = tmp_idx;
-	number_of_arr[c][p]--;
-	piece_index[c][p][s] = 0;
-	piece_on_arr[s] = PIECE_NONE;
-	(c == WHITE ? piece_diff[p]-- : piece_diff[p]++);
-	// zobrist keys
-	position->pKey ^= Zobrist::piece_rands(s, c, p);
-	position->mKey ^= Zobrist::piece_rands(s, c, p);
-	if (p == PAWN)  position->pawnKey ^= Zobrist::piece_rands(s, c, p);
+  color_on_arr[s] = COLOR_NONE;
+  int tmp_idx = piece_index[c][p][s];
+  int max_idx = number_of_arr[c][p];
+  int tmp_sq = square_of_arr[c][p][max_idx];
+  square_of_arr[c][p][tmp_idx] = square_of_arr[c][p][max_idx];
+  square_of_arr[c][p][max_idx] = SQUARE_NONE;
+  piece_index[c][p][tmp_sq] = tmp_idx;
+  number_of_arr[c][p]--;
+  piece_index[c][p][s] = 0;
+  piece_on_arr[s] = PIECE_NONE;
+  (c == WHITE ? piece_diff[p]-- : piece_diff[p]++);
+  // zobrist keys
+  position->pKey ^= Zobrist::piece_rands(s, c, p);
+  position->mKey ^= Zobrist::piece_rands(s, c, p);
+  if (p == PAWN)  position->pawnKey ^= Zobrist::piece_rands(s, c, p);
 }
 
 void Board::add_piece(int c, int p, int s)
 {
-	number_of_arr[c][p]++;
-
-	square_of_arr[c][p][number_of_arr[c][p]] = s;
-	piece_on_arr[s] = p;
-	piece_index[c][p][s] = number_of_arr[c][p];
-	
-	(c == WHITE ? piece_diff[p]++ : piece_diff[p]--);
-	
-	// zobrist keys
-	position->pKey ^= Zobrist::piece_rands(s, c, p);
-	position->mKey ^= Zobrist::piece_rands(s, c, p);
-	if (p == PAWN)  position->pawnKey ^= Zobrist::piece_rands(s, c, p);
+  color_on_arr[s] = c;
+  number_of_arr[c][p]++;
+  
+  square_of_arr[c][p][number_of_arr[c][p]] = s;
+  piece_on_arr[s] = p;
+  piece_index[c][p][s] = number_of_arr[c][p];
+  
+  (c == WHITE ? piece_diff[p]++ : piece_diff[p]--);
+  
+  // zobrist keys
+  position->pKey ^= Zobrist::piece_rands(s, c, p);
+  position->mKey ^= Zobrist::piece_rands(s, c, p);
+  if (p == PAWN)  position->pawnKey ^= Zobrist::piece_rands(s, c, p);
 }

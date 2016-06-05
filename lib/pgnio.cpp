@@ -1,4 +1,6 @@
 #include <algorithm>
+#include <math.h>
+
 #include "pgnio.h"
 
   // initial position
@@ -10,7 +12,7 @@ struct
 
 pgn_io::pgn_io(char * db_fname) :
     ofile(0), ifile(0), book(0), data(0),
-    nb_elements(0), size_bytes(0)
+    nb_elements(0), size_bytes(0), move_count(0), collision_count(0)
 {
   if (db_fname)
     {
@@ -21,7 +23,7 @@ pgn_io::pgn_io(char * db_fname) :
 
 pgn_io::pgn_io(char * pgn_fname, char * db_fname, size_t size_mb) :
   ofile(0), ifile(0), book(0), data(0),
-  nb_elements(0), size_bytes(0)
+  nb_elements(0), size_bytes(0), move_count(0), collision_count(0)
 {
   if (pgn_fname)
     {
@@ -86,10 +88,10 @@ bool pgn_io::parse(Board& b)
 	  if (eog)
 	    {
 	      // do we have enough space to write a new entry
-	      if (sizeof(data) >= size_bytes-1024*100)
+	      if (sizeof(data) >= size_bytes-1024)
 		{
 		  printf("..end pgn parse, space full\n");
-		  printf("..%d games parsed successfully.", games);
+		  printf("..%d games, %d moves, %d collisions parsed successfully.", games, move_count, collision_count);
 		  write();
 		  return true;
 		}
@@ -106,7 +108,7 @@ bool pgn_io::parse(Board& b)
   //for (int j=0; j<9; ++j)
   //printf("header tag --> %s\n", data->tags[j].c_str());
   write();
-  printf("..finished, %d games parsed successfully.", games);
+  printf("..finished, %d games, %d moves, %d collisions parsed successfully.", games, move_count, collision_count);
   return true;
 }
 
@@ -197,7 +199,6 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
   std::vector<std::string> comment_list;
   while(ss >> std::skipws >> token )
     {
-
       if (token.find("{") != std::string::npos)
 	{
 	  comment = true;
@@ -245,9 +246,11 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	{
 	  // strip move of all notations, checks/mates
 	  pgn_strip(token);
+	  //if (move_count < 50) printf("token = %s\n", token.c_str());
 	  U16 m = san_to_move_16(b, token);
 	  if (m != 0) 
 	    {
+	      ++move_count;
 	      book->compute_key(b.to_fen().c_str());
 	      U64 k = book->key();
 	      b.do_move(pd, m);
@@ -257,17 +260,20 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	      // handle collisions
 	      if (data[idx].key != 0 && data[idx].key != k)
 		{
+		  ++collision_count;		  
+		  //printf("..collision @ %d, for move = %s\n", idx, token.c_str());
 		  for(int j=idx; j<nb_elements; ++j)
 		    {
 		      if (data[j].key == 0 || data[j].key == k)
 			{
+			  --collision_count;
 			  data[j].key = k;
 			  data[j].moves.push_back(encode_move(m));
 			  break;
 			}
 		    }
 		}
-	      else
+		else
 		{
 		  data[idx].key = k;
 		  data[idx].moves.push_back(encode_move(m));
@@ -506,60 +512,50 @@ std::string pgn_io::find(const char * fen)
   if (!ofile) return "";
   if (!book->compute_key(fen)) return "";
   U64 k = book->key();
-  
-  //printf("..computed key %lx\n", k);
   size_t offset = 0; size_t sz = ofile->tellg();
-
-  int nb_elts = sz / sizeof(db_entry);
-  //printf("..sz %d bytes, db_entry(%d) bytes  -> half elts = %d\n", sz, sizeof(db_entry), nb_elts/ 2 );
-  
-  offset = 0; //sz/2;//nb_elts / 2 * sizeof(db_entry);
   db_entry * e = new db_entry();
-  ofile->seekg(offset);
-  ofile->read( (char*) e, sizeof(db_entry));
+  size_t low = 0; size_t high = sz / sizeof(db_entry); 
 
-  //printf("..read key %lx @ %d\n", e->key, offset);
-  size_t low = 0; size_t high = sz/sizeof(db_entry); size_t width = (high - low) / 2;
-  
-  while (e->key != k && offset <= sz && offset >= low && width >= 1)
-    {   
-      if (k < e->key)
-	{	  
-	  offset += width * sizeof(db_entry);
-	  width /= 2;
-	  if (width < 1) offset += sizeof(db_entry);
-	}
-      else
-	{
-	  offset -= width *  sizeof(db_entry); 
-	  width /= 2;
-	  if (width < 1) offset -= sizeof(db_entry);
-	}
-      
-      //printf("k=%lu, found=%lu, offset=%d\n",k, e->key, offset);
-      //offset += sizeof(db_entry);
-      ofile->seekg(offset);
-      ofile->read((char*) e, sizeof(db_entry));
-    }
-  if (e->key == k)
+  while (low < high)
     {
+      offset = low + floor((high - low)/2);
+      ofile->seekg(offset*sizeof(db_entry));
+      ofile->read((char*) e, sizeof(db_entry));
+      
+      if (k < e->key)
+	{
+	  low = offset + 1;
+	}
+      else if (k > e->key)
+	{
+	  high = offset - 1;
+	}
+      else if (k == e->key)
+	{
+	  break;
+	}
+    }
+
+    if (e->key == k)
+    {
+
       while (e->key == k)
 	{
-	  offset -= sizeof(db_entry);
-	  ofile->seekg(offset);
+	  offset -= 1;
+	  ofile->seekg(offset*sizeof(db_entry));
 	  ofile->read((char*) e, sizeof(db_entry));
 	}
-      offset += sizeof(db_entry);
-      ofile->seekg(offset);
+      offset += 1;
+      ofile->seekg(offset*sizeof(db_entry));
       ofile->read((char*) e, sizeof(db_entry));
       
       std::vector<std::string> responses;
       std::vector<int * > results;
 
-      while(e->key == k && offset < sz - 1)
+      while(e->key == k)
 	{
 	  int type = int((e->move & 0xf000) >> 12);
-	  std::string response = SanSquares[get_from(e->move)] + SanSquares[get_to(e->move)];// + " result = " + r;
+	  std::string response = SanSquares[get_from(e->move)] + SanSquares[get_to(e->move)];
 	  bool exists = false;
 	  for(int j=0; j<responses.size(); ++j)
 	    {
@@ -577,11 +573,9 @@ std::string pgn_io::find(const char * fen)
 	      results.push_back(r);
 	      responses.push_back(response);
 	    }
-	  //printf("...found %s\n", result.c_str());
 
-	  offset += sizeof(db_entry);
-	  //else offset = offset + (sz - offset)/2;
-	  ofile->seekg(offset);
+	  offset += 1;
+	  ofile->seekg(offset*sizeof(db_entry));
 	  ofile->read((char*) e, sizeof(db_entry));
 	}
 
@@ -602,13 +596,12 @@ bool pgn_io::write()
   printf("..writing to db file\n");
   // sort data on position keys  
   std::sort(data, data + nb_elements, GreaterThan);
-  size_t offset = 0;
- 
+  size_t offset = 0; int count = 0;
   for (int j=0; j<nb_elements; ++j)
     {
       db_entry e;
       e.key = data[j].key;
-      for (int m=0; m<data[j].moves.size(); ++m)
+      for (int m=0; m<data[j].moves.size(); ++m, ++count)
 	{
 	  e.move = data[j].moves[m];
 	  //printf("..writing %ull, %d @ %d\n", e.key, e.move, offset);
@@ -617,7 +610,7 @@ bool pgn_io::write()
 	  offset += sizeof(e);
 	}            
     }
-  printf("..finished writing to db file\n");
+  printf("..finished writing %d moves to db file\n", count);
   ofile->close();
   
   return true;

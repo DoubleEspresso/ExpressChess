@@ -93,7 +93,6 @@ public abstract class GLWindow extends GLCanvas
 			public void handleEvent(Event e) {
 				if (e.button == 3) // right-click mouse button
 				{
-					System.out.println("GOT RIGHT_CLICK EVENT!!");
 					setCurrent();
 					onMouseRightClick(e);
 				}

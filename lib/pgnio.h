@@ -36,7 +36,9 @@ class pgn_io
   pgn_data * data;
   size_t nb_elements;
   size_t size_bytes;
-  std::string tags[TAG_NB];  
+  std::string tags[TAG_NB];
+  int move_count;
+  int collision_count;
   
   public:
   pgn_io(char * db_fname);

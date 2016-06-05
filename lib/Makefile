@@ -4,7 +4,7 @@ CXX = g++
 RM = rm -f  # rm command
 LFLAGS = -lpthread
 INCS =
-CFLAGS = -Wall -O3 -g -fomit-frame-pointer -fstrict-aliasing -fno-rtti -save-temps -std=gnu++11 $(INCS) # -g for debug
+CFLAGS = -Wall -O3 -fomit-frame-pointer -fstrict-aliasing -fno-rtti -save-temps -std=gnu++11 $(INCS) # -g for debug
 
 CFLAGSD = -Wall -g -O3 -fomit-frame-pointer -fstrict-aliasing -fno-rtti -save-temps -std=gnu++11 $(INCS) 
 USERMACROS =
