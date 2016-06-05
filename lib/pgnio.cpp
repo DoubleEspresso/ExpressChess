@@ -47,7 +47,7 @@ pgn_io::~pgn_io()
 bool pgn_io::init_db(size_t size_mb)
 {
   size_t kb = 1024;
-  size_t mb = 10 * kb;
+  size_t mb = 1024 * kb;
   //size_t size_mb = 10 * size_mb; // size in bytes
   nb_elements  = nearest_power_of_2(size_mb*mb) / sizeof(pgn_data);
   size_bytes = nb_elements * sizeof(pgn_data);
@@ -234,7 +234,7 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	}
 
       // check end of game, todo: handling various spacings 
-      if (token == "1/2-1/2" || token == "1-0" || token == "0-1")
+      if (token == "1/2-1/2" || token == "1-0" || token == "0-1" || token == "*")
 	{	  
 	  //printf("..end of game, %s",(token == "1/2-1/2" ? "draw" : token == "1-0" ? "white win" : "black win"));
 	  //b.print();	  
@@ -253,8 +253,25 @@ bool pgn_io::parse_moves(Board& b, BoardData& pd, std::string& line, bool& eog)
 	      b.do_move(pd, m);
 
 	      int idx = (nb_elements-1) & k;
-	      data[idx].key = k;
-	      data[idx].moves.push_back(encode_move(m));
+
+	      // handle collisions
+	      if (data[idx].key != 0 && data[idx].key != k)
+		{
+		  for(int j=idx; j<nb_elements; ++j)
+		    {
+		      if (data[j].key == 0 || data[j].key == k)
+			{
+			  data[j].key = k;
+			  data[j].moves.push_back(encode_move(m));
+			  break;
+			}
+		    }
+		}
+	      else
+		{
+		  data[idx].key = k;
+		  data[idx].moves.push_back(encode_move(m));
+		}
 	    }
 	  else 
 	    {
@@ -310,9 +327,18 @@ U16 pgn_io::san_to_move_16(Board& b, std::string& s)
     {
       promotionType = (s[i] == 'N' ? 1 : s[i] == 'B' ? 2 : s[i] == 'R' ? 3 : 4);
 
-      i-=1; if (s[i]=='=') i-=1;      
-      s = s.substr(0,len-2); // remove the "=q" piece
-      len -= 2;
+      i-=1; 
+      if (s[i]=='=')
+	{
+	  i-=1;      
+	  s = s.substr(0,len-2); // remove the "=q" piece
+	  len -= 2;
+	}
+      else 
+	{
+	  s = s.substr(0,len-1); // remove the "q" piece, no = 
+	  len -= 1;
+	}
       to = to_square(s);
       isPromotion = true;
     }
@@ -430,6 +456,8 @@ U16 pgn_io::find_move_promotion(Board& b, int pp, int to, int fp, bool isCapture
 int pgn_io::to_square(std::string& s)
 {
   int len = s.size();
+  if (len < 2) return -1;
+
   std::string tostr = s.substr(len-2, len);
   int to = -1;
   for (int j=0; j<64; ++j) 
@@ -479,39 +507,39 @@ std::string pgn_io::find(const char * fen)
   if (!book->compute_key(fen)) return "";
   U64 k = book->key();
   
-  printf("..computed key %lx\n", k);
+  //printf("..computed key %lx\n", k);
   size_t offset = 0; size_t sz = ofile->tellg();
 
   int nb_elts = sz / sizeof(db_entry);
-  printf("..sz %d bytes -> half elts = %d\n", sz, nb_elts/ 2 );
+  //printf("..sz %d bytes, db_entry(%d) bytes  -> half elts = %d\n", sz, sizeof(db_entry), nb_elts/ 2 );
   
-  offset = nb_elts / 2 * sizeof(db_entry);
+  offset = 0; //sz/2;//nb_elts / 2 * sizeof(db_entry);
   db_entry * e = new db_entry();
   ofile->seekg(offset);
   ofile->read( (char*) e, sizeof(db_entry));
 
-  printf("..read key %lx @ %d\n", e->key, offset);
-  size_t low = 0; size_t high = sz;
+  //printf("..read key %lx @ %d\n", e->key, offset);
+  size_t low = 0; size_t high = sz/sizeof(db_entry); size_t width = (high - low) / 2;
   
-  while (e->key != k && offset < sz - 1 && offset >= 1)
-    {
+  while (e->key != k && offset <= sz && offset >= low && width >= 1)
+    {   
       if (k < e->key)
-	{
-	  printf("k<e->key, %d, %d\n", k, e->key);
-	  high = offset;
-	  offset = (high - low) / 2;
+	{	  
+	  offset += width * sizeof(db_entry);
+	  width /= 2;
+	  if (width < 1) offset += sizeof(db_entry);
 	}
       else
 	{
-	  printf("k>=e->key, %d, %d\n", k, e->key);
-	  low = offset;
-	  offset = (high - low) / 2;
+	  offset -= width *  sizeof(db_entry); 
+	  width /= 2;
+	  if (width < 1) offset -= sizeof(db_entry);
 	}
-
+      
+      //printf("k=%lu, found=%lu, offset=%d\n",k, e->key, offset);
+      //offset += sizeof(db_entry);
       ofile->seekg(offset);
       ofile->read((char*) e, sizeof(db_entry));
-      //printf("..read key %lx @ %d\n", e->key, offset);
-      //if (e->key == 0) break;
     }
   if (e->key == k)
     {
@@ -525,21 +553,43 @@ std::string pgn_io::find(const char * fen)
       ofile->seekg(offset);
       ofile->read((char*) e, sizeof(db_entry));
       
-      std::vector<std::string> results;
-      printf("..found it!\n");
+      std::vector<std::string> responses;
+      std::vector<int * > results;
+
       while(e->key == k && offset < sz - 1)
 	{
 	  int type = int((e->move & 0xf000) >> 12);
-	  std::string r = (type == 0 ? "draw" : type == 1 ? "white win" : "black win");
-	  std::string result = SanSquares[get_from(e->move)] + SanSquares[get_to(e->move)] + " result = " + r;
-	  results.push_back(result);
-	  printf("...found %s\n", result.c_str());
+	  std::string response = SanSquares[get_from(e->move)] + SanSquares[get_to(e->move)];// + " result = " + r;
+	  bool exists = false;
+	  for(int j=0; j<responses.size(); ++j)
+	    {
+	      if (responses[j] == response)
+		{
+		  results[j][type]++;		  
+		  exists = true;
+		  break;
+		}
+	    }
+	  if (!exists) 
+	    {
+	      int * r = new int [3];
+	      r[0] = 0; r[1] = 0; r[2] = 0; r[type]++;
+	      results.push_back(r);
+	      responses.push_back(response);
+	    }
+	  //printf("...found %s\n", result.c_str());
 
 	  offset += sizeof(db_entry);
 	  //else offset = offset + (sz - offset)/2;
 	  ofile->seekg(offset);
 	  ofile->read((char*) e, sizeof(db_entry));
 	}
+
+      for (int j=0; j<responses.size(); ++j)
+	{
+	  printf("..%s  %d %d %d\n", responses[j].c_str(), results[j][1], results[j][0], results[j][2]);
+	}
+
       return "";
     }
   else printf("..nothing found\n");

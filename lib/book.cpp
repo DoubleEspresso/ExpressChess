@@ -126,7 +126,7 @@ bool Book::compute_key(const char* fen)
     }
 
   e->key = piece_key ^ castle_key ^ ep_key ^ stm_key;
-  printf("..encoded position key for fen(%s) == %lx\n", fen, e->key);
+  //printf("..encoded position key for fen(%s) == %lu\n", fen, e->key);
 }
 
 
