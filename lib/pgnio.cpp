@@ -284,7 +284,7 @@ U16 pgn_io::encode_move(U16& m)  // insert the game result into the move
     }
   int t = get_to(m);
   int f = get_from(m);
-  int r = (tags[RESULT] == "1-0" ? 1 : tags[RESULT] == "0-1" ? 2 : 0); // 2 bits
+  int r = (tags[RESULT] == " 1-0" ? 1 : tags[RESULT] == " 0-1" ? 2 : 0); // 2 bits
   em = (f | (t << 6) | r << 12 | pp << 14);
   return em;
 }
@@ -481,27 +481,66 @@ std::string pgn_io::find(const char * fen)
   
   printf("..computed key %lx\n", k);
   size_t offset = 0; size_t sz = ofile->tellg();
+
+  int nb_elts = sz / sizeof(db_entry);
+  printf("..sz %d bytes -> half elts = %d\n", sz, nb_elts/ 2 );
   
-  //offset = sz / 2;
+  offset = nb_elts / 2 * sizeof(db_entry);
   db_entry * e = new db_entry();
   ofile->seekg(offset);
   ofile->read( (char*) e, sizeof(db_entry));
 
   printf("..read key %lx @ %d\n", e->key, offset);
+  size_t low = 0; size_t high = sz;
   
-  while (e->key != k && offset < sz - 1)
+  while (e->key != k && offset < sz - 1 && offset >= 1)
     {
-      offset += sizeof(db_entry);
-      //else offset = offset + (sz - offset)/2;
+      if (k < e->key)
+	{
+	  printf("k<e->key, %d, %d\n", k, e->key);
+	  high = offset;
+	  offset = (high - low) / 2;
+	}
+      else
+	{
+	  printf("k>=e->key, %d, %d\n", k, e->key);
+	  low = offset;
+	  offset = (high - low) / 2;
+	}
+
       ofile->seekg(offset);
       ofile->read((char*) e, sizeof(db_entry));
-      printf("..read key %lx @ %d\n", e->key, offset);
+      //printf("..read key %lx @ %d\n", e->key, offset);
       //if (e->key == 0) break;
     }
   if (e->key == k)
     {
+      while (e->key == k)
+	{
+	  offset -= sizeof(db_entry);
+	  ofile->seekg(offset);
+	  ofile->read((char*) e, sizeof(db_entry));
+	}
+      offset += sizeof(db_entry);
+      ofile->seekg(offset);
+      ofile->read((char*) e, sizeof(db_entry));
+      
+      std::vector<std::string> results;
       printf("..found it!\n");
-      return SanSquares[get_from(e->move)] + SanSquares[get_to(e->move)];
+      while(e->key == k && offset < sz - 1)
+	{
+	  int type = int((e->move & 0xf000) >> 12);
+	  std::string r = (type == 0 ? "draw" : type == 1 ? "white win" : "black win");
+	  std::string result = SanSquares[get_from(e->move)] + SanSquares[get_to(e->move)] + " result = " + r;
+	  results.push_back(result);
+	  printf("...found %s\n", result.c_str());
+
+	  offset += sizeof(db_entry);
+	  //else offset = offset + (sz - offset)/2;
+	  ofile->seekg(offset);
+	  ofile->read((char*) e, sizeof(db_entry));
+	}
+      return "";
     }
   else printf("..nothing found\n");
   return "";
